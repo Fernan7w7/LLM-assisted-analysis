@@ -290,7 +290,7 @@ Do not rely on it for auditing production smart contracts.
 
 ## Author
 
-monsert
+monsert,
 Computer Science Student | Smart Contract Security Enthusiast
 
 ---
