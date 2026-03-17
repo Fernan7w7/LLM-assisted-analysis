@@ -129,7 +129,7 @@ All models are evaluated under:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Fernan7w7/LLM-assisted-analysis
+git clone https://github.com/Fernan7w7/LLM-assisted-analysis.git
 cd LLM-assisted-analysis
 ```
 
