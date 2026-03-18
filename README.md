@@ -129,7 +129,7 @@ All models are evaluated under:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/Fernan7w7/LLM-assisted-analysis
+git clone https://github.com/Fernan7w7/LLM-assisted-analysis.git
 cd LLM-assisted-analysis
 ```
 
@@ -290,7 +290,7 @@ Do not rely on it for auditing production smart contracts.
 
 ## Author
 
-monsert
+monsert,
 Computer Science Student | Smart Contract Security Enthusiast
 
 ---
