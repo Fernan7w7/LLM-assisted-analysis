@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 
 from analyzers.gpt import analyze_prompt as analyze_with_gpt
 from analyzers.claude import analyze_prompt as analyze_with_claude
@@ -30,9 +31,10 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
 
     fn_name = function_data["function_name"].lower()
     code = function_data["code"].lower()
+    code_compact = " ".join(code.split())
 
     name_match = any(keyword.lower() in fn_name for keyword in function_keywords) if function_keywords else True
-    content_match = any(keyword.lower() in code for keyword in content_keywords) if content_keywords else True
+    content_match = any(keyword.lower() in code or keyword.lower() in code_compact for keyword in content_keywords) if content_keywords else True
 
     return name_match or content_match
 
@@ -91,7 +93,39 @@ def analyze_function_with_provider(provider_name: str, provider_fn, filepath: st
     scenario_data = scenario_resp["parsed"]
 
     if not scenario_data.get("scenario_match", False):
-        return None
+        return {
+            "provider": provider_name,
+            "file": filepath,
+            "contract_name": function_data.get("contract_name"),
+            "function_name": function_data["function_name"],
+            "signature": function_data.get("signature"),
+            "start_line": function_data.get("start_line"),
+            "end_line": function_data.get("end_line"),
+            "vulnerability_id": vulnerability["id"],
+            "vulnerability_name": vulnerability["name"],
+            "severity": vulnerability["severity"],
+            "scenario_match": False,
+            "scenario_confidence": scenario_data.get("confidence"),
+            "scenario_reason": scenario_data.get("reason"),
+            "property_match": False,
+            "property_confidence": None,
+            "property_reason": None,
+            "evidence": [],
+            "recommendation": None,
+            "static_check": {
+                "applied": False,
+                "passed": False,
+                "details": "Property stage not reached because scenario did not match."
+            },
+            "llm_vulnerable": False,
+            "final_vulnerable": False,
+            "final_confidence": float(scenario_data.get("confidence", 0) or 0),
+            "raw": {
+                "scenario_raw": scenario_resp["raw"],
+                "property_raw": None
+            },
+            "error": None
+        }
 
     property_prompt = build_property_prompt(function_data, vulnerability)
     property_resp = provider_fn(property_prompt)

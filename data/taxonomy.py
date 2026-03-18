@@ -1,5 +1,5 @@
 VULNERABILITY_SCENARIOS = [
-    {
+        {
         "id": "DOS_EXTERNAL",
         "name": "DoS by External Contract",
         "scenario": "The function makes an external call inside critical control flow.",
@@ -7,8 +7,23 @@ VULNERABILITY_SCENARIOS = [
         "severity": "High",
         "confirmation_type": "external_call_criticality",
         "filters": {
-            "function_keywords": ["withdraw", "claim", "redeem", "unstake", "borrow"],
-            "content_keywords": [".call(", ".transfer(", ".send(", "require(", "if ("]
+            "function_keywords": ["withdraw", "claim", "redeem", "unstake", "borrow", "bid", "participate"],
+            "content_keywords": [
+                ".call(",
+                ".call{",
+                ".call {",
+                ".call.value(",
+                ".delegatecall(",
+                ".delegatecall{",
+                ".staticcall(",
+                ".staticcall{",
+                ".transfer(",
+                ".send(",
+                "require(",
+                "revert(",
+                "bool success",
+                "require(success)"
+            ]
         }
     },
     {

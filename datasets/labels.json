@@ -1,0 +1,37 @@
+[
+  {
+    "file": "dos_01_real_auction.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "expected": true,
+    "affected_functions": ["bid"],
+    "notes": "External call with require can revert and block execution."
+  },
+  {
+    "file": "dos_02_refund_require.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "expected": true,
+    "affected_functions": ["participate"],
+    "notes": "External call with require(success) causes DoS risk."
+  },
+  {
+    "file": "dos_03_pull_payment_safe.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "expected": false,
+    "affected_functions": [],
+    "notes": "Uses pull-payment pattern."
+  },
+  {
+    "file": "dos_04_external_noncritical.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "expected": false,
+    "affected_functions": [],
+    "notes": "External call is non-critical and ignored."
+  },
+  {
+    "file": "dos_05_call_ignored.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "expected": false,
+    "affected_functions": [],
+    "notes": "External call exists but does not revert execution."
+  }
+]
