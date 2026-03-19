@@ -7,59 +7,66 @@ VULNERABILITY_SCENARIOS = [
         "severity": "High",
         "confirmation_type": "external_call_criticality",
         "filters": {
-            "function_keywords": ["withdraw", "claim", "redeem", "unstake", "borrow", "bid", "participate"],
+            "function_keywords": ["bid", "participate", "claim", "redeem", "borrow", "withdraw"],
             "content_keywords": [
                 ".call(",
                 ".call{",
-                ".call {",
                 ".call.value(",
-                ".delegatecall(",
-                ".delegatecall{",
-                ".staticcall(",
-                ".staticcall{",
-                ".transfer(",
-                ".send(",
-                "require(",
-                "revert(",
                 "bool success",
-                "require(success)"
+                "require(success)",
+                "if (!success)",
+                "revert(",
+                "currentLeader",
+                "lastUser",
+                "pendingWithdrawals"
             ]
-        }
-    },
-    {
-        "id": "WRONG_CHECKPOINT_ORDER",
-        "name": "Wrong Checkpoint Order",
-        "scenario": "The function invokes a checkpoint and also updates balances, shares, stakes, or rewards.",
-        "property": "The checkpoint is executed after the balance or reward update instead of before it, which can lead to incorrect reward accounting or manipulation.",
-        "severity": "High",
-        "confirmation_type": "order_check",
-        "filters": {
-            "function_keywords": ["deposit", "withdraw", "stake", "claim"],
-            "content_keywords": ["checkpoint", "reward", "balance", "share", "stake"]
         }
     },
     {
         "id": "SLIPPAGE",
         "name": "Slippage",
         "scenario": "The function performs a swap, liquidity operation, or asset exchange.",
-        "property": "The function does not enforce a minimum output amount or equivalent slippage protection, allowing adverse price execution or sandwich attacks.",
+        "property": "The function does not enforce a minimum output amount or equivalent slippage protection, allowing adverse execution or sandwich-style loss.",
         "severity": "High",
         "confirmation_type": "slippage_check",
         "filters": {
-            "function_keywords": ["swap", "buy", "sell", "mint", "addliquidity", "removeliquidity"],
-            "content_keywords": ["swap", "router", "amountoutmin", "minout", "liquidity"]
+            "function_keywords": ["swap", "buy", "sell", "addliquidity", "removeliquidity"],
+            "content_keywords": [
+                "swapexactethfortokens",
+                "swapexacttokensfortokens",
+                "swapexacttokensforeth",
+                "amountoutmin",
+                "minout",
+                "minimum",
+                "getamountsout",
+                "router"
+            ]
         }
     },
     {
         "id": "UNAUTHORIZED_TRANSFER",
         "name": "Unauthorized Transfer",
-        "scenario": "The function invokes token transferFrom or equivalent token movement from a from address that may differ from msg.sender.",
-        "property": "There is no proper authorization check such as allowance validation, approval validation, ownership validation, or equivalent access control before the token transfer occurs.",
+        "scenario": "The function moves tokens or assets to another address, especially from an address that may differ from msg.sender, or performs a transfer operation that may require authorization.",
+        "property": "There is no proper authorization check such as allowance validation, approval validation, ownership validation, or equivalent access control before the transfer occurs.",
         "severity": "High",
         "confirmation_type": "authorization_check",
         "filters": {
-            "function_keywords": ["transfer", "transferfrom", "spend"],
-            "content_keywords": ["transferfrom", "allowance", "approve", "from", "erc20"]
+            "function_keywords": ["transfer", "transferfrom", "move", "sweep", "spend", "pay", "payout"],
+            "content_keywords": [
+                "transferfrom",
+                ".transferfrom(",
+                ".transfer(",
+                "allowance(",
+                ".allowance(",
+                "approve(",
+                "approved",
+                "ownerof(",
+                "isapprovedforall",
+                "onlyowner",
+                "msg.sender == owner",
+                "require(msg.sender == owner",
+                "to.transfer("
+            ]
         }
     }
 ]

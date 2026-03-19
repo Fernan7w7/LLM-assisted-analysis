@@ -1,37 +1,37 @@
 [
   {
-    "file": "dos_01_real_auction.sol",
-    "vulnerability_id": "DOS_EXTERNAL",
+    "file": "unauth_01_transferfrom_no_check.sol",
+    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
     "expected": true,
-    "affected_functions": ["bid"],
-    "notes": "External call with require can revert and block execution."
+    "affected_functions": ["moveTokens"],
+    "notes": "Calls transferFrom on an arbitrary from address without any authorization validation."
   },
   {
-    "file": "dos_02_refund_require.sol",
-    "vulnerability_id": "DOS_EXTERNAL",
+    "file": "unauth_02_arbitrary_spend.sol",
+    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
     "expected": true,
-    "affected_functions": ["participate"],
-    "notes": "External call with require(success) causes DoS risk."
+    "affected_functions": ["sweep"],
+    "notes": "Allows arbitrary victim address to be used in transferFrom without permission checks."
   },
   {
-    "file": "dos_03_pull_payment_safe.sol",
-    "vulnerability_id": "DOS_EXTERNAL",
+    "file": "unauth_03_with_allowance_check.sol",
+    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
     "expected": false,
     "affected_functions": [],
-    "notes": "Uses pull-payment pattern."
+    "notes": "Checks allowance before executing transferFrom."
   },
   {
-    "file": "dos_04_external_noncritical.sol",
-    "vulnerability_id": "DOS_EXTERNAL",
+    "file": "unauth_04_owner_treasury_transfer.sol",
+    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
     "expected": false,
     "affected_functions": [],
-    "notes": "External call is non-critical and ignored."
+    "notes": "Transfers contract-owned tokens with owner-only access control; does not move tokens from an arbitrary victim."
   },
   {
-    "file": "dos_05_call_ignored.sol",
-    "vulnerability_id": "DOS_EXTERNAL",
+    "file": "unauth_05_eth_payout_edge.sol",
+    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
     "expected": false,
     "affected_functions": [],
-    "notes": "External call exists but does not revert execution."
+    "notes": "Performs owner-authorized ETH payout, not token transferFrom from another user."
   }
 ]

@@ -26,17 +26,35 @@ PROVIDERS = {
 
 def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
     filters = vulnerability.get("filters", {})
-    function_keywords = filters.get("function_keywords", [])
-    content_keywords = filters.get("content_keywords", [])
+    function_keywords = [k.lower() for k in filters.get("function_keywords", [])]
+    content_keywords = [k.lower() for k in filters.get("content_keywords", [])]
 
     fn_name = function_data["function_name"].lower()
     code = function_data["code"].lower()
     code_compact = " ".join(code.split())
 
-    name_match = any(keyword.lower() in fn_name for keyword in function_keywords) if function_keywords else True
-    content_match = any(keyword.lower() in code or keyword.lower() in code_compact for keyword in content_keywords) if content_keywords else True
+    name_match = any(keyword in fn_name for keyword in function_keywords) if function_keywords else True
+    content_match = any(
+        keyword in code or keyword in code_compact
+        for keyword in content_keywords
+    ) if content_keywords else True
 
-    return name_match or content_match
+    basic_match = name_match or content_match
+
+    if not basic_match:
+        return False
+
+    if vulnerability["id"] == "DOS_EXTERNAL":
+        owner_payout_pattern = (
+            ("onlyowner" in code_compact or "msg.sender == owner" in code_compact)
+            and (".transfer(" in code_compact or ".call{" in code_compact)
+            and "transferfrom" not in code_compact
+        )
+
+        if owner_payout_pattern:
+            return False
+
+    return True
 
 
 def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
@@ -208,7 +226,9 @@ def analyze_file(filepath: str) -> list[dict]:
 
     for function_data in functions:
         for vulnerability in VULNERABILITY_SCENARIOS:
-            if not function_matches_filter(function_data, vulnerability):
+            matched = function_matches_filter(function_data, vulnerability)
+            print(f"[FILTER] fn={function_data['function_name']} vuln={vulnerability['id']} matched={matched}")
+            if not matched:
                 continue
 
             for provider_name, provider_fn in PROVIDERS.items():
