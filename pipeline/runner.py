@@ -227,7 +227,6 @@ def analyze_file(filepath: str) -> list[dict]:
     for function_data in functions:
         for vulnerability in VULNERABILITY_SCENARIOS:
             matched = function_matches_filter(function_data, vulnerability)
-            print(f"[FILTER] fn={function_data['function_name']} vuln={vulnerability['id']} matched={matched}")
             if not matched:
                 continue
 

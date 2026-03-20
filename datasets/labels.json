@@ -1,37 +1,137 @@
 [
   {
-    "file": "unauth_01_transferfrom_no_check.sol",
+    "file": "positive/dos_01_real_auction.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "category": "DOS",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["bid"],
+    "notes": "External call with require can revert and block execution."
+  },
+  {
+    "file": "positive/dos_02_refund_required.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "category": "DOS",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["participate"],
+    "notes": "External call with require(success) causes DoS risk."
+  },
+  {
+    "file": "negative/dos_03_pull_payment_safe.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "category": "DOS",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "notes": "Uses pull-payment pattern."
+  },
+  {
+    "file": "negative/dos_04_external_noncritical.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "category": "DOS",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "notes": "External call is non-critical and ignored."
+  },
+  {
+    "file": "edge/dos_05_call_ignored.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "category": "DOS",
+    "split": "edge",
+    "expected": false,
+    "affected_functions": null,
+    "notes": "External call exists but does not revert execution."
+  },
+  {
+    "file": "positive/slippage_01_no_min_output.sol",
+    "vulnerability_id": "SLIPPAGE",
+    "category": "SLIPPAGE",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["swap"],
+    "notes": "Swap uses amountOutMin = 0 with no additional minimum-output protection."
+  },
+  {
+    "file": "positive/slippage_02_missing_check.sol",
+    "vulnerability_id": "SLIPPAGE",
+    "category": "SLIPPAGE",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["swap"],
+    "notes": "Token swap uses amountOutMin = 0 and does not enforce a minimum received amount."
+  },
+  {
+    "file": "negative/slippage_03_with_min_output.sol",
+    "vulnerability_id": "SLIPPAGE",
+    "category": "SLIPPAGE",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "notes": "Swap passes a user-supplied minimum output value to the router."
+  },
+  {
+    "file": "negative/slippage_04_manual_check.sol",
+    "vulnerability_id": "SLIPPAGE",
+    "category": "SLIPPAGE",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "notes": "Swap output is checked manually with a require after execution."
+  },
+  {
+    "file": "edge/slippage_05_price_read_only.sol",
+    "vulnerability_id": "SLIPPAGE",
+    "category": "SLIPPAGE",
+    "split": "edge",
+    "expected": false,
+    "affected_functions": null,
+    "notes": "Contract only reads price quotes and does not execute a swap."
+  },
+  {
+    "file": "positive/unauth_01_transferfrom_no_check.sol",
     "vulnerability_id": "UNAUTHORIZED_TRANSFER",
+    "category": "UNAUTHORIZED_TRANSFER",
+    "split": "positive",
     "expected": true,
     "affected_functions": ["moveTokens"],
     "notes": "Calls transferFrom on an arbitrary from address without any authorization validation."
   },
   {
-    "file": "unauth_02_arbitrary_spend.sol",
+    "file": "positive/unauth_02_arbitrary_spend.sol",
     "vulnerability_id": "UNAUTHORIZED_TRANSFER",
+    "category": "UNAUTHORIZED_TRANSFER",
+    "split": "positive",
     "expected": true,
     "affected_functions": ["sweep"],
     "notes": "Allows arbitrary victim address to be used in transferFrom without permission checks."
   },
   {
-    "file": "unauth_03_with_allowance_check.sol",
+    "file": "negative/unauth_03_with_allowance_check.sol",
     "vulnerability_id": "UNAUTHORIZED_TRANSFER",
+    "category": "UNAUTHORIZED_TRANSFER",
+    "split": "negative",
     "expected": false,
-    "affected_functions": [],
+    "affected_functions": null,
     "notes": "Checks allowance before executing transferFrom."
   },
   {
-    "file": "unauth_04_owner_treasury_transfer.sol",
+    "file": "negative/unauth_04_owner_treasury_transfer.sol",
     "vulnerability_id": "UNAUTHORIZED_TRANSFER",
+    "category": "UNAUTHORIZED_TRANSFER",
+    "split": "negative",
     "expected": false,
-    "affected_functions": [],
+    "affected_functions": null,
     "notes": "Transfers contract-owned tokens with owner-only access control; does not move tokens from an arbitrary victim."
   },
   {
-    "file": "unauth_05_eth_payout_edge.sol",
+    "file": "edge/unauth_05_eth_payout_edge.sol",
     "vulnerability_id": "UNAUTHORIZED_TRANSFER",
+    "category": "UNAUTHORIZED_TRANSFER",
+    "split": "edge",
     "expected": false,
-    "affected_functions": [],
+    "affected_functions": null,
     "notes": "Performs owner-authorized ETH payout, not token transferFrom from another user."
   }
 ]
