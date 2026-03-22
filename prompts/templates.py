@@ -1,40 +1,40 @@
 def build_scenario_prompt(function_data: dict, vulnerability: dict) -> str:
     return f"""
-You are a smart contract security auditor.
+      You are a smart contract security auditor.
 
-Decide whether the Solidity function below matches this vulnerability scenario.
+      Decide whether the Solidity function below matches this vulnerability scenario.
 
-Vulnerability: {vulnerability['name']}
-Scenario: {vulnerability['scenario']}
+      Vulnerability: {vulnerability['name']}
+      Scenario: {vulnerability['scenario']}
 
-Return ONLY valid JSON:
-{{
-  "scenario_match": true,
-  "confidence": 0.0,
-  "reason": "short reason"
-}}
+      Return ONLY valid JSON:
+      {{
+        "scenario_match": true,
+        "confidence": 0.0,
+        "reason": "short reason"
+      }}
 
-or
+      or
 
-{{
-  "scenario_match": false,
-  "confidence": 0.0,
-  "reason": "short reason"
-}}
+      {{
+        "scenario_match": false,
+        "confidence": 0.0,
+        "reason": "short reason"
+      }}
 
-Rules:
-- confidence must be a number between 0 and 1
-- use only the given function
-- do not include markdown
-- do not include extra keys
+      Rules:
+      - confidence must be a number between 0 and 1
+      - use only the given function
+      - do not include markdown
+      - do not include extra keys
 
-Contract: {function_data.get('contract_name')}
-Function: {function_data['function_name']}
-Signature: {function_data['signature']}
+      Contract: {function_data.get('contract_name')}
+      Function: {function_data['function_name']}
+      Signature: {function_data['signature']}
 
-Code:
-{function_data['code']}
-""".strip()
+      Code:
+      {function_data['code']}
+      """.strip()
 
 
 def build_property_prompt(function_data: dict, vulnerability: dict) -> str:
