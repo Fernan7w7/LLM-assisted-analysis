@@ -9,6 +9,7 @@ from data.taxonomy import VULNERABILITY_SCENARIOS
 from parsing.solidity_parser import load_contract, extract_functions
 from pipeline.reporting import print_summary, save_json
 from prompts.templates import build_property_prompt, build_scenario_prompt
+from parsing.behavior_extractor import extract_behavior
 from static_checks.basic_checks import (
     confirm_authorization_check,
     confirm_external_call_dos,
@@ -225,6 +226,7 @@ def analyze_file(filepath: str) -> list[dict]:
     results = []
 
     for function_data in functions:
+        function_data["behavior"] = extract_behavior(function_data["code"])
         for vulnerability in VULNERABILITY_SCENARIOS:
             matched = function_matches_filter(function_data, vulnerability)
             if not matched:
