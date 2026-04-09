@@ -24,6 +24,7 @@ PROVIDERS = {
     "gemini": analyze_with_gemini,
 }
 
+DEBUG_BEHAVIOR_ONLY = True
 
 def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
     filters = vulnerability.get("filters", {})
@@ -227,6 +228,13 @@ def analyze_file(filepath: str) -> list[dict]:
 
     for function_data in functions:
         function_data["behavior"] = extract_behavior(function_data["code"])
+        print("\n=== FUNCTION ===")
+        print(function_data["function_name"])
+        print(function_data["behavior"])
+
+        if DEBUG_BEHAVIOR_ONLY:
+            continue
+
         for vulnerability in VULNERABILITY_SCENARIOS:
             matched = function_matches_filter(function_data, vulnerability)
             if not matched:

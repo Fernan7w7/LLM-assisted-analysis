@@ -7,12 +7,28 @@ def extract_behavior(function_code: str) -> dict:
     for line in lines:
         if "require(" in line:
             ops.append({"type": "CHECK", "detail": line})
+
+        if re.match(r"^(if|else if|else|for|while)\b", line):
+            continue
+
         if "delegatecall" in line:
             ops.append({"type": "DELEGATECALL", "detail": line})
-        elif ".call" in line or ".send" in line or ".transfer" in line:
+        elif (
+            ".call(" in line
+            or ".call{" in line
+            or ".call.value(" in line
+            or ".send(" in line
+            or ".transfer(" in line
+        ):
             ops.append({"type": "CALL", "detail": line})
-        elif "=" in line and "[" in line and "]" in line:
-            if line.strip().startswith(("uint ", "int ", "bool ", "address ", "bytes ", "string ")):
+        elif (
+            "=" in line
+            and "==" not in line
+            and "!=" not in line
+            and ">=" not in line
+            and "<=" not in line
+        ):
+            if line.startswith(("uint ", "int ", "bool ", "address ", "bytes ", "string ")):
                 continue
             ops.append({"type": "WRITE", "detail": line})
 
@@ -20,7 +36,7 @@ def extract_behavior(function_code: str) -> dict:
     has_delegatecall = any(op["type"] == "DELEGATECALL" for op in ops)
     has_auth_check = (
         "onlyowner" in function_code.lower()
-        or "msg.sender == owner" in function_code.replace(" ", "").lower()
+        or "msg.sender == owner" in function_code.lower()
         or "require(msg.sender==" in function_code.replace(" ", "").lower()
     )
     has_require = "require(" in function_code
