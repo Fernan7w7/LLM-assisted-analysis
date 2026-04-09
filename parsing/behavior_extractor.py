@@ -28,16 +28,23 @@ def extract_behavior(function_code: str) -> dict:
             and ">=" not in line
             and "<=" not in line
         ):
-            if line.startswith(("uint ", "int ", "bool ", "address ", "bytes ", "string ")):
+            if line.startswith((
+                "uint ", "uint8 ", "uint16 ", "uint32 ", "uint64 ", "uint128 ", "uint256 ",
+                "int ", "int8 ", "int16 ", "int32 ", "int64 ", "int128 ", "int256 ",
+                "bool ", "address ", "bytes ", "bytes32 ", "string "
+            )):
                 continue
             ops.append({"type": "WRITE", "detail": line})
+
+    lowered = function_code.lower()
+    compact = function_code.replace(" ", "").lower()
 
     has_external_call = any(op["type"] == "CALL" for op in ops)
     has_delegatecall = any(op["type"] == "DELEGATECALL" for op in ops)
     has_auth_check = (
-        "onlyowner" in function_code.lower()
-        or "msg.sender == owner" in function_code.lower()
-        or "require(msg.sender==" in function_code.replace(" ", "").lower()
+        "onlyowner" in lowered
+        or "msg.sender == owner" in lowered
+        or "require(msg.sender==" in compact
     )
     has_require = "require(" in function_code
 
@@ -45,6 +52,12 @@ def extract_behavior(function_code: str) -> dict:
     write_after_call = False
     if call_idx is not None:
         write_after_call = any(op["type"] == "WRITE" for op in ops[call_idx + 1:])
+
+    delegatecall_uses_msg_data = "delegatecall(msg.data)" in compact or ".delegatecall(msg.data)" in compact
+    delegatecall_uses_variable_target = False
+    if has_delegatecall:
+        variable_target_terms = ["target.delegatecall", "implementation.delegatecall", "logic.delegatecall", "_impl.delegatecall", "impl.delegatecall"]
+        delegatecall_uses_variable_target = any(term in compact for term in variable_target_terms)
 
     return {
         "operation_sequence": ops,
@@ -54,5 +67,7 @@ def extract_behavior(function_code: str) -> dict:
             "has_auth_check": has_auth_check,
             "has_require": has_require,
             "writes_after_call": write_after_call,
+            "delegatecall_uses_msg_data": delegatecall_uses_msg_data,
+            "delegatecall_uses_variable_target": delegatecall_uses_variable_target,
         }
     }
