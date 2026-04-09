@@ -14,7 +14,6 @@ from static_checks.basic_checks import (
     confirm_authorization_check,
     confirm_external_call_dos,
     confirm_order_issue,
-    confirm_slippage_check,
     confirm_reentrancy_pattern,
     confirm_access_control,
     confirm_delegatecall_misuse,
