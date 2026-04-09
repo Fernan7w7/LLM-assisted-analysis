@@ -17,8 +17,8 @@ from static_checks.basic_checks import (
     confirm_slippage_check,
     confirm_reentrancy_pattern,
     confirm_access_control,
+    confirm_delegatecall_misuse,
 )
-
 
 
 PROVIDERS = {
@@ -86,6 +86,9 @@ def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
 
     if confirmation_type == "access_control_check":
         return confirm_access_control(function_data)
+
+    if confirmation_type == "delegatecall_check":
+        return confirm_delegatecall_misuse(function_data)
 
     if confirmation_type == "order_check":
         return confirm_order_issue(
