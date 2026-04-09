@@ -1,0 +1,1024 @@
+[
+  {
+    "path": "./datasets/positive/dos_01_real_auction.sol",
+    "expected": "DOS_EXTERNAL",
+    "should_flag": true,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/dos_01_real_auction.sol",
+        "contract_name": "Auction",
+        "function_name": "bid",
+        "signature": "function bid() public payable",
+        "start_line": 8,
+        "end_line": 17,
+        "vulnerability_id": "DOS_EXTERNAL",
+        "vulnerability_name": "DoS by External Contract",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function makes an external call to currentLeader within critical control flow, which can lead to DoS if the external contract fails.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The external call to currentLeader can revert, blocking the function without recovery.",
+        "evidence": [
+          "The function requires a call to currentLeader with the highestBid amount.",
+          "If currentLeader is a malicious contract, it can revert the call, preventing state updates."
+        ],
+        "recommendation": "Use a pull-over-push pattern for refunds to avoid blocking on external calls.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "External call found together with blocking logic tied to the call result."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to currentLeader within critical control flow, which can lead to DoS if the external contract fails.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The external call to currentLeader can revert, blocking the function without recovery.\",\n  \"evidence\": [\n    \"The function requires a call to currentLeader with the highestBid amount.\",\n    \"If currentLeader is a malicious contract, it can revert the call, preventing state updates.\"\n  ],\n  \"recommendation\": \"Use a pull-over-push pattern for refunds to avoid blocking on external calls.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/dos_01_real_auction.sol",
+        "contract_name": "Auction",
+        "function_name": "bid",
+        "signature": "function bid() public payable",
+        "start_line": 8,
+        "end_line": 17,
+        "vulnerability_id": "REENTRANCY",
+        "vulnerability_name": "Reentrancy",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 1.0,
+        "scenario_reason": "The function makes an external call to currentLeader before updating critical state variables.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function allows a malicious contract to re-enter before the state is updated, as it calls an external contract before updating the highestBid.",
+        "evidence": [
+          "The external call to currentLeader.call.value(highestBid)() occurs before updating currentLeader and highestBid.",
+          "The state changes (currentLeader and highestBid) happen after the external call, allowing reentrancy."
+        ],
+        "recommendation": "Use a checks-effects-interactions pattern to update state before making external calls.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "External call occurs before a later state write, matching a reentrancy risk pattern."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function makes an external call to currentLeader before updating critical state variables.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function allows a malicious contract to re-enter before the state is updated, as it calls an external contract before updating the highestBid.\",\n  \"evidence\": [\n    \"The external call to currentLeader.call.value(highestBid)() occurs before updating currentLeader and highestBid.\",\n    \"The state changes (currentLeader and highestBid) happen after the external call, allowing reentrancy.\"\n  ],\n  \"recommendation\": \"Use a checks-effects-interactions pattern to update state before making external calls.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/negative/dos_03_pull_payment_safe.sol",
+    "expected": "DOS_EXTERNAL",
+    "should_flag": false,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/dos_03_pull_payment_safe.sol",
+        "contract_name": "SafeAuction",
+        "function_name": "withdraw",
+        "signature": "function withdraw() public",
+        "start_line": 21,
+        "end_line": 25,
+        "vulnerability_id": "DOS_EXTERNAL",
+        "vulnerability_name": "DoS by External Contract",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function makes an external call to transfer funds, which is within critical control flow after modifying state.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function transfers Ether to an external address without checks, risking DoS if the call fails.",
+        "evidence": [
+          "The external call to 'payable(msg.sender).transfer(amount);' can revert.",
+          "State change occurs before the external call, allowing a malicious contract to block further withdrawals."
+        ],
+        "recommendation": "Implement a checks-effects-interactions pattern or use 'call' with error handling.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "Self-withdraw pull-payment pattern detected; failure affects only the caller, not shared protocol progress."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": false,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to transfer funds, which is within critical control flow after modifying state.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function transfers Ether to an external address without checks, risking DoS if the call fails.\",\n  \"evidence\": [\n    \"The external call to 'payable(msg.sender).transfer(amount);' can revert.\",\n    \"State change occurs before the external call, allowing a malicious contract to block further withdrawals.\"\n  ],\n  \"recommendation\": \"Implement a checks-effects-interactions pattern or use 'call' with error handling.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/dos_03_pull_payment_safe.sol",
+        "contract_name": "SafeAuction",
+        "function_name": "withdraw",
+        "signature": "function withdraw() public",
+        "start_line": 21,
+        "end_line": 25,
+        "vulnerability_id": "ACCESS_CONTROL",
+        "vulnerability_name": "Access Control",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function withdraw performs a sensitive action of transferring funds, which matches the access control scenario.",
+        "property_match": true,
+        "property_confidence": 1.0,
+        "property_reason": "The function does not include any authorization checks to restrict access to the withdraw functionality.",
+        "evidence": [
+          "The function is public and can be called by any address.",
+          "There are no checks for msg.sender or ownership before executing the withdrawal."
+        ],
+        "recommendation": "Add an access control modifier such as onlyOwner or require(msg.sender == expectedAddress).",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Sensitive action detected with no authorization check."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function withdraw performs a sensitive action of transferring funds, which matches the access control scenario.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function does not include any authorization checks to restrict access to the withdraw functionality.\",\n  \"evidence\": [\n    \"The function is public and can be called by any address.\",\n    \"There are no checks for msg.sender or ownership before executing the withdrawal.\"\n  ],\n  \"recommendation\": \"Add an access control modifier such as onlyOwner or require(msg.sender == expectedAddress).\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/dos_03_pull_payment_safe.sol",
+        "contract_name": "SafeAuction",
+        "function_name": "withdraw",
+        "signature": "function withdraw() public",
+        "start_line": 21,
+        "end_line": 25,
+        "vulnerability_id": "REENTRANCY",
+        "vulnerability_name": "Reentrancy",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function makes an external call to transfer funds before completing critical state updates.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function allows a malicious contract to re-enter before the internal state is updated, leading to potential exploitation.",
+        "evidence": [
+          "The state change 'pendingWithdrawals[msg.sender] = 0;' occurs after the external call 'payable(msg.sender).transfer(amount);'.",
+          "The external call to transfer Ether can invoke fallback functions in the caller contract, allowing reentrancy."
+        ],
+        "recommendation": "Use a checks-effects-interactions pattern by updating state before making external calls.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "External call detected, but no state write appears after the call."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": false,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to transfer funds before completing critical state updates.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function allows a malicious contract to re-enter before the internal state is updated, leading to potential exploitation.\",\n  \"evidence\": [\n    \"The state change 'pendingWithdrawals[msg.sender] = 0;' occurs after the external call 'payable(msg.sender).transfer(amount);'.\",\n    \"The external call to transfer Ether can invoke fallback functions in the caller contract, allowing reentrancy.\"\n  ],\n  \"recommendation\": \"Use a checks-effects-interactions pattern by updating state before making external calls.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/positive/reentrancy_01.sol",
+    "expected": "REENTRANCY",
+    "should_flag": true,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/reentrancy_01.sol",
+        "contract_name": "VulnerableBank",
+        "function_name": "withdraw",
+        "signature": "function withdraw() external",
+        "start_line": 11,
+        "end_line": 19,
+        "vulnerability_id": "DOS_EXTERNAL",
+        "vulnerability_name": "DoS by External Contract",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function makes an external call to msg.sender, which can lead to DoS if the external contract fails.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function makes an external call to msg.sender, which can revert, blocking the withdraw process.",
+        "evidence": [
+          "The external call is made with (bool success, ) = msg.sender.call{value: amount}(\"\");",
+          "The function requires success of the external call, and if it fails, the state change does not occur."
+        ],
+        "recommendation": "Use a pull payment pattern instead of a push payment to avoid reliance on external calls.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "External call present, but its failure is not tied to blocking logic."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": false,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to msg.sender, which can lead to DoS if the external contract fails.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to msg.sender, which can revert, blocking the withdraw process.\",\n  \"evidence\": [\n    \"The external call is made with (bool success, ) = msg.sender.call{value: amount}(\\\"\\\");\",\n    \"The function requires success of the external call, and if it fails, the state change does not occur.\"\n  ],\n  \"recommendation\": \"Use a pull payment pattern instead of a push payment to avoid reliance on external calls.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/reentrancy_01.sol",
+        "contract_name": "VulnerableBank",
+        "function_name": "withdraw",
+        "signature": "function withdraw() external",
+        "start_line": 11,
+        "end_line": 19,
+        "vulnerability_id": "ACCESS_CONTROL",
+        "vulnerability_name": "Access Control",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function allows users to withdraw funds, which is a sensitive action involving state change and external call.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function does not check if the caller is authorized to withdraw funds, allowing any user to withdraw any balance.",
+        "evidence": [
+          "No authorization check like onlyOwner or role validation is present.",
+          "The function directly uses msg.sender to determine the balance without restrictions."
+        ],
+        "recommendation": "Implement an authorization check to ensure only allowed users can withdraw.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Sensitive action detected with no authorization check."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function allows users to withdraw funds, which is a sensitive action involving state change and external call.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function does not check if the caller is authorized to withdraw funds, allowing any user to withdraw any balance.\",\n  \"evidence\": [\n    \"No authorization check like onlyOwner or role validation is present.\",\n    \"The function directly uses msg.sender to determine the balance without restrictions.\"\n  ],\n  \"recommendation\": \"Implement an authorization check to ensure only allowed users can withdraw.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/reentrancy_01.sol",
+        "contract_name": "VulnerableBank",
+        "function_name": "withdraw",
+        "signature": "function withdraw() external",
+        "start_line": 11,
+        "end_line": 19,
+        "vulnerability_id": "REENTRANCY",
+        "vulnerability_name": "Reentrancy",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 1.0,
+        "scenario_reason": "The function makes an external call to msg.sender before updating the state, matching the reentrancy scenario.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The external call to msg.sender occurs before the internal state is updated, allowing reentrancy.",
+        "evidence": [
+          "The external call is made with (bool success, ) = msg.sender.call{value: amount}(\"\");",
+          "The state update balances[msg.sender] = 0; occurs after the external call."
+        ],
+        "recommendation": "Use a checks-effects-interactions pattern by updating state before external calls.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "External call occurs before a later state write, matching a reentrancy risk pattern."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function makes an external call to msg.sender before updating the state, matching the reentrancy scenario.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The external call to msg.sender occurs before the internal state is updated, allowing reentrancy.\",\n  \"evidence\": [\n    \"The external call is made with (bool success, ) = msg.sender.call{value: amount}(\\\"\\\");\",\n    \"The state update balances[msg.sender] = 0; occurs after the external call.\"\n  ],\n  \"recommendation\": \"Use a checks-effects-interactions pattern by updating state before external calls.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/negative/reentrancy_02.sol",
+    "expected": "REENTRANCY",
+    "should_flag": false,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/reentrancy_02.sol",
+        "contract_name": "SafeBank",
+        "function_name": "withdraw",
+        "signature": "function withdraw() external",
+        "start_line": 11,
+        "end_line": 19,
+        "vulnerability_id": "DOS_EXTERNAL",
+        "vulnerability_name": "DoS by External Contract",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function makes an external call to msg.sender within critical control flow after state changes.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function makes an external call to msg.sender, which can revert and block further execution.",
+        "evidence": [
+          "The external call is made after state changes, specifically after setting balances[msg.sender] to 0.",
+          "The require statement checks the success of the external call, which can fail if msg.sender is a malicious contract."
+        ],
+        "recommendation": "Use a pull-over-push pattern for withdrawals to avoid direct external calls.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "External call present, but its failure is not tied to blocking logic."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": false,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to msg.sender within critical control flow after state changes.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to msg.sender, which can revert and block further execution.\",\n  \"evidence\": [\n    \"The external call is made after state changes, specifically after setting balances[msg.sender] to 0.\",\n    \"The require statement checks the success of the external call, which can fail if msg.sender is a malicious contract.\"\n  ],\n  \"recommendation\": \"Use a pull-over-push pattern for withdrawals to avoid direct external calls.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/reentrancy_02.sol",
+        "contract_name": "SafeBank",
+        "function_name": "withdraw",
+        "signature": "function withdraw() external",
+        "start_line": 11,
+        "end_line": 19,
+        "vulnerability_id": "ACCESS_CONTROL",
+        "vulnerability_name": "Access Control",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function allows users to withdraw funds, which is a sensitive action involving state change and external call.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function does not check if the caller is authorized to withdraw funds, allowing any user to call it.",
+        "evidence": [
+          "No authorization check like onlyOwner or role validation is present.",
+          "The function allows any external caller to withdraw their balance without restrictions."
+        ],
+        "recommendation": "Implement an authorization check to restrict access to the withdraw function.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Sensitive action detected with no authorization check."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function allows users to withdraw funds, which is a sensitive action involving state change and external call.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function does not check if the caller is authorized to withdraw funds, allowing any user to call it.\",\n  \"evidence\": [\n    \"No authorization check like onlyOwner or role validation is present.\",\n    \"The function allows any external caller to withdraw their balance without restrictions.\"\n  ],\n  \"recommendation\": \"Implement an authorization check to restrict access to the withdraw function.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/reentrancy_02.sol",
+        "contract_name": "SafeBank",
+        "function_name": "withdraw",
+        "signature": "function withdraw() external",
+        "start_line": 11,
+        "end_line": 19,
+        "vulnerability_id": "REENTRANCY",
+        "vulnerability_name": "Reentrancy",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 1.0,
+        "scenario_reason": "The function makes an external call to msg.sender before completing critical state updates.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function allows a reentrant call before the internal state is updated, enabling exploitation.",
+        "evidence": [
+          "The external call to msg.sender occurs after the balance is set to zero.",
+          "The state change (balances[msg.sender] = 0) happens before the external call."
+        ],
+        "recommendation": "Use a checks-effects-interactions pattern or a reentrancy guard.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "External call detected, but no state write appears after the call."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": false,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function makes an external call to msg.sender before completing critical state updates.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function allows a reentrant call before the internal state is updated, enabling exploitation.\",\n  \"evidence\": [\n    \"The external call to msg.sender occurs after the balance is set to zero.\",\n    \"The state change (balances[msg.sender] = 0) happens before the external call.\"\n  ],\n  \"recommendation\": \"Use a checks-effects-interactions pattern or a reentrancy guard.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/positive/access_01.sol",
+    "expected": "ACCESS_CONTROL",
+    "should_flag": true,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/access_01.sol",
+        "contract_name": "VulnerableVault",
+        "function_name": "withdrawAll",
+        "signature": "function withdrawAll() external",
+        "start_line": 13,
+        "end_line": 15,
+        "vulnerability_id": "DOS_EXTERNAL",
+        "vulnerability_name": "DoS by External Contract",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function makes an external call to transfer funds, which is critical control flow.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function makes an external call to transfer funds without any checks, which can lead to a DoS if the recipient contract reverts.",
+        "evidence": [
+          "The function calls 'payable(msg.sender).transfer(address(this).balance);' which is an external call.",
+          "There are no authorization checks or require statements to handle potential failures.",
+          "If the external call fails, the function execution will revert, blocking further withdrawals."
+        ],
+        "recommendation": "Implement a check for the success of the external call and consider using 'call' with error handling.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "External call present, but its failure is not tied to blocking logic."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": false,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to transfer funds, which is critical control flow.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to transfer funds without any checks, which can lead to a DoS if the recipient contract reverts.\",\n  \"evidence\": [\n    \"The function calls 'payable(msg.sender).transfer(address(this).balance);' which is an external call.\",\n    \"There are no authorization checks or require statements to handle potential failures.\",\n    \"If the external call fails, the function execution will revert, blocking further withdrawals.\"\n  ],\n  \"recommendation\": \"Implement a check for the success of the external call and consider using 'call' with error handling.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/access_01.sol",
+        "contract_name": "VulnerableVault",
+        "function_name": "withdrawAll",
+        "signature": "function withdrawAll() external",
+        "start_line": 13,
+        "end_line": 15,
+        "vulnerability_id": "ACCESS_CONTROL",
+        "vulnerability_name": "Access Control",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function withdrawAll transfers the entire balance of the contract to the caller, which is a sensitive action without any access control checks.",
+        "property_match": true,
+        "property_confidence": 1.0,
+        "property_reason": "The function withdrawAll lacks any authorization checks, allowing any user to withdraw the entire balance.",
+        "evidence": [
+          "Function is marked as external and can be called by any address.",
+          "No checks for msg.sender or ownership are present.",
+          "The transfer call directly sends the contract's balance to msg.sender."
+        ],
+        "recommendation": "Implement an access control mechanism, such as onlyOwner or role validation.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Sensitive action detected with no authorization check."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function withdrawAll transfers the entire balance of the contract to the caller, which is a sensitive action without any access control checks.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function withdrawAll lacks any authorization checks, allowing any user to withdraw the entire balance.\",\n  \"evidence\": [\n    \"Function is marked as external and can be called by any address.\",\n    \"No checks for msg.sender or ownership are present.\",\n    \"The transfer call directly sends the contract's balance to msg.sender.\"\n  ],\n  \"recommendation\": \"Implement an access control mechanism, such as onlyOwner or role validation.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/access_01.sol",
+        "contract_name": "VulnerableVault",
+        "function_name": "withdrawAll",
+        "signature": "function withdrawAll() external",
+        "start_line": 13,
+        "end_line": 15,
+        "vulnerability_id": "REENTRANCY",
+        "vulnerability_name": "Reentrancy",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 1.0,
+        "scenario_reason": "The function makes an external call to transfer funds before any state updates, matching the reentrancy scenario.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function transfers Ether to the caller before updating any internal state, allowing reentrancy.",
+        "evidence": [
+          "The function makes an external call to transfer Ether before any state changes.",
+          "There are no authorization checks or require statements to prevent reentrancy."
+        ],
+        "recommendation": "Use a checks-effects-interactions pattern or a reentrancy guard.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "External call detected, but no state write appears after the call."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": false,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function makes an external call to transfer funds before any state updates, matching the reentrancy scenario.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function transfers Ether to the caller before updating any internal state, allowing reentrancy.\",\n  \"evidence\": [\n    \"The function makes an external call to transfer Ether before any state changes.\",\n    \"There are no authorization checks or require statements to prevent reentrancy.\"\n  ],\n  \"recommendation\": \"Use a checks-effects-interactions pattern or a reentrancy guard.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/negative/access_02.sol",
+    "expected": "ACCESS_CONTROL",
+    "should_flag": false,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/access_02.sol",
+        "contract_name": "SafeVault",
+        "function_name": "withdrawAll",
+        "signature": "function withdrawAll() external onlyOwner",
+        "start_line": 18,
+        "end_line": 20,
+        "vulnerability_id": "ACCESS_CONTROL",
+        "vulnerability_name": "Access Control",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 1.0,
+        "scenario_reason": "The function withdrawAll allows the owner to transfer all funds, which is a privileged action.",
+        "property_match": false,
+        "property_confidence": 0.9,
+        "property_reason": "The function includes an 'onlyOwner' modifier, which provides an authorization check.",
+        "evidence": [
+          "The function signature includes 'onlyOwner', indicating access control.",
+          "The execution summary indicates 'has_auth_check' is true."
+        ],
+        "recommendation": "Ensure the 'onlyOwner' modifier is correctly implemented to restrict access.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "Sensitive action detected, but an authorization check is present."
+        },
+        "llm_vulnerable": false,
+        "final_vulnerable": false,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function withdrawAll allows the owner to transfer all funds, which is a privileged action.\"\n}",
+          "property_raw": "{\n  \"property_match\": false,\n  \"confidence\": 0.9,\n  \"reason\": \"The function includes an 'onlyOwner' modifier, which provides an authorization check.\",\n  \"evidence\": [\n    \"The function signature includes 'onlyOwner', indicating access control.\",\n    \"The execution summary indicates 'has_auth_check' is true.\"\n  ],\n  \"recommendation\": \"Ensure the 'onlyOwner' modifier is correctly implemented to restrict access.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/access_02.sol",
+        "contract_name": "SafeVault",
+        "function_name": "withdrawAll",
+        "signature": "function withdrawAll() external onlyOwner",
+        "start_line": 18,
+        "end_line": 20,
+        "vulnerability_id": "REENTRANCY",
+        "vulnerability_name": "Reentrancy",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 1.0,
+        "scenario_reason": "The function makes an external call to transfer funds before any state updates, matching the reentrancy scenario.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function makes an external call to transfer funds before updating any internal state, allowing reentrancy.",
+        "evidence": [
+          "The function transfers the entire balance to msg.sender without updating any state variables.",
+          "The external call to transfer occurs before any state changes, which is a classic reentrancy vulnerability."
+        ],
+        "recommendation": "Implement a checks-effects-interactions pattern or use a reentrancy guard.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "External call detected, but no state write appears after the call."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": false,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function makes an external call to transfer funds before any state updates, matching the reentrancy scenario.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function makes an external call to transfer funds before updating any internal state, allowing reentrancy.\",\n  \"evidence\": [\n    \"The function transfers the entire balance to msg.sender without updating any state variables.\",\n    \"The external call to transfer occurs before any state changes, which is a classic reentrancy vulnerability.\"\n  ],\n  \"recommendation\": \"Implement a checks-effects-interactions pattern or use a reentrancy guard.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/positive/delegatecall_01.sol",
+    "expected": "DELEGATECALL_MISUSE",
+    "should_flag": true,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/delegatecall_01.sol",
+        "contract_name": "VulnerableDelegate",
+        "function_name": "execute",
+        "signature": "function execute(bytes calldata data) external",
+        "start_line": 13,
+        "end_line": 16,
+        "vulnerability_id": "ACCESS_CONTROL",
+        "vulnerability_name": "Access Control",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function uses delegatecall, which can change the state of the calling contract, indicating a privileged action.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function lacks any authorization checks, allowing any external caller to execute it.",
+        "evidence": [
+          "The function is marked as external, allowing any address to call it.",
+          "There are no checks for msg.sender or ownership before executing the delegatecall."
+        ],
+        "recommendation": "Implement an access control mechanism, such as onlyOwner or role-based checks.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Sensitive action detected with no authorization check."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function uses delegatecall, which can change the state of the calling contract, indicating a privileged action.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function lacks any authorization checks, allowing any external caller to execute it.\",\n  \"evidence\": [\n    \"The function is marked as external, allowing any address to call it.\",\n    \"There are no checks for msg.sender or ownership before executing the delegatecall.\"\n  ],\n  \"recommendation\": \"Implement an access control mechanism, such as onlyOwner or role-based checks.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/delegatecall_01.sol",
+        "contract_name": "VulnerableDelegate",
+        "function_name": "execute",
+        "signature": "function execute(bytes calldata data) external",
+        "start_line": 13,
+        "end_line": 16,
+        "vulnerability_id": "DELEGATECALL_MISUSE",
+        "vulnerability_name": "Delegatecall Misuse",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 1.0,
+        "scenario_reason": "The function performs a delegatecall with external input, matching the vulnerability scenario.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function uses delegatecall with an externally controlled target, allowing potential manipulation of the caller's storage.",
+        "evidence": [
+          "The target address is variable and not restricted.",
+          "The function does not perform any authorization checks before the delegatecall."
+        ],
+        "recommendation": "Implement access control and validate the target address before using delegatecall.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Delegatecall uses a variable target without authorization."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function performs a delegatecall with external input, matching the vulnerability scenario.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function uses delegatecall with an externally controlled target, allowing potential manipulation of the caller's storage.\",\n  \"evidence\": [\n    \"The target address is variable and not restricted.\",\n    \"The function does not perform any authorization checks before the delegatecall.\"\n  ],\n  \"recommendation\": \"Implement access control and validate the target address before using delegatecall.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/negative/delegatecall_02.sol",
+    "expected": "DELEGATECALL_MISUSE",
+    "should_flag": false,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/delegatecall_02.sol",
+        "contract_name": "SafeDelegate",
+        "function_name": "execute",
+        "signature": "function execute(bytes calldata data) external onlyOwner",
+        "start_line": 18,
+        "end_line": 21,
+        "vulnerability_id": "ACCESS_CONTROL",
+        "vulnerability_name": "Access Control",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function executes a delegatecall, which can change critical state, and is restricted to the owner.",
+        "property_match": false,
+        "property_confidence": 0.9,
+        "property_reason": "The function has an appropriate authorization check using onlyOwner, preventing unauthorized access.",
+        "evidence": [
+          "The function is marked with onlyOwner modifier, ensuring only the contract owner can execute it.",
+          "The execution summary indicates has_auth_check is true."
+        ],
+        "recommendation": "Ensure the onlyOwner modifier is correctly implemented and tested.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "Sensitive action detected, but an authorization check is present."
+        },
+        "llm_vulnerable": false,
+        "final_vulnerable": false,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function executes a delegatecall, which can change critical state, and is restricted to the owner.\"\n}",
+          "property_raw": "{\n  \"property_match\": false,\n  \"confidence\": 0.9,\n  \"reason\": \"The function has an appropriate authorization check using onlyOwner, preventing unauthorized access.\",\n  \"evidence\": [\n    \"The function is marked with onlyOwner modifier, ensuring only the contract owner can execute it.\",\n    \"The execution summary indicates has_auth_check is true.\"\n  ],\n  \"recommendation\": \"Ensure the onlyOwner modifier is correctly implemented and tested.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/delegatecall_02.sol",
+        "contract_name": "SafeDelegate",
+        "function_name": "execute",
+        "signature": "function execute(bytes calldata data) external onlyOwner",
+        "start_line": 18,
+        "end_line": 21,
+        "vulnerability_id": "DELEGATECALL_MISUSE",
+        "vulnerability_name": "Delegatecall Misuse",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 1.0,
+        "scenario_reason": "The function performs a delegatecall with external input, matching the vulnerability scenario.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The delegatecall target is variable and can be externally controlled, allowing for unexpected storage changes.",
+        "evidence": [
+          "The target for delegatecall is not fixed and can be set externally.",
+          "The function does not validate the target address before the delegatecall."
+        ],
+        "recommendation": "Implement strict access controls and validate the target address before delegatecalling.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "Delegatecall detected, but no strong misuse pattern was confirmed."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": false,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function performs a delegatecall with external input, matching the vulnerability scenario.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The delegatecall target is variable and can be externally controlled, allowing for unexpected storage changes.\",\n  \"evidence\": [\n    \"The target for delegatecall is not fixed and can be set externally.\",\n    \"The function does not validate the target address before the delegatecall.\"\n  ],\n  \"recommendation\": \"Implement strict access controls and validate the target address before delegatecalling.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/positive/logic_01.sol",
+    "expected": "LOGIC_VALIDATION",
+    "should_flag": true,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/logic_01.sol",
+        "contract_name": "MissingZeroAddressCheck",
+        "function_name": "setRecipient",
+        "signature": "function setRecipient(address _recipient) external",
+        "start_line": 7,
+        "end_line": 9,
+        "vulnerability_id": "ACCESS_CONTROL",
+        "vulnerability_name": "Access Control",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function changes a critical state by setting a recipient address without any access control checks.",
+        "property_match": true,
+        "property_confidence": 1.0,
+        "property_reason": "The function does not include any authorization checks, allowing any caller to set the recipient.",
+        "evidence": [
+          "Function is external and lacks any access control modifiers.",
+          "No checks on msg.sender or role validation present."
+        ],
+        "recommendation": "Add an access control modifier like onlyOwner or require(msg.sender == owner).",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Sensitive action detected with no authorization check."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.95,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function changes a critical state by setting a recipient address without any access control checks.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 1.0,\n  \"reason\": \"The function does not include any authorization checks, allowing any caller to set the recipient.\",\n  \"evidence\": [\n    \"Function is external and lacks any access control modifiers.\",\n    \"No checks on msg.sender or role validation present.\"\n  ],\n  \"recommendation\": \"Add an access control modifier like onlyOwner or require(msg.sender == owner).\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/logic_01.sol",
+        "contract_name": "MissingZeroAddressCheck",
+        "function_name": "setRecipient",
+        "signature": "function setRecipient(address _recipient) external",
+        "start_line": 7,
+        "end_line": 9,
+        "vulnerability_id": "LOGIC_VALIDATION",
+        "vulnerability_name": "Logic / Validation Bug",
+        "severity": "Medium",
+        "scenario_match": true,
+        "scenario_confidence": 0.9,
+        "scenario_reason": "The function sets a recipient address without any validation checks, which is a sensitive action.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function lacks validation for the recipient address, allowing zero address assignment.",
+        "evidence": [
+          "No zero address check is present in the function.",
+          "The function directly assigns the input address to the recipient without any validation."
+        ],
+        "recommendation": "Add a require statement to check that _recipient is not the zero address.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Missing validation patterns detected: missing_zero_address_check."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.9,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function sets a recipient address without any validation checks, which is a sensitive action.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function lacks validation for the recipient address, allowing zero address assignment.\",\n  \"evidence\": [\n    \"No zero address check is present in the function.\",\n    \"The function directly assigns the input address to the recipient without any validation.\"\n  ],\n  \"recommendation\": \"Add a require statement to check that _recipient is not the zero address.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/negative/logic_02.sol",
+    "expected": "LOGIC_VALIDATION",
+    "should_flag": false,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/logic_02.sol",
+        "contract_name": "SafeZeroAddressCheck",
+        "function_name": "setRecipient",
+        "signature": "function setRecipient(address _recipient) external",
+        "start_line": 7,
+        "end_line": 10,
+        "vulnerability_id": "ACCESS_CONTROL",
+        "vulnerability_name": "Access Control",
+        "severity": "High",
+        "scenario_match": true,
+        "scenario_confidence": 0.8,
+        "scenario_reason": "The function changes a critical state by setting a recipient address, which is a sensitive action.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function lacks any authorization checks, allowing any external caller to set the recipient.",
+        "evidence": [
+          "Function is marked as external, allowing any address to call it.",
+          "No access control mechanism like onlyOwner or role validation is present."
+        ],
+        "recommendation": "Implement an access control mechanism to restrict who can call setRecipient.",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Sensitive action detected with no authorization check."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.85,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.8,\n  \"reason\": \"The function changes a critical state by setting a recipient address, which is a sensitive action.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function lacks any authorization checks, allowing any external caller to set the recipient.\",\n  \"evidence\": [\n    \"Function is marked as external, allowing any address to call it.\",\n    \"No access control mechanism like onlyOwner or role validation is present.\"\n  ],\n  \"recommendation\": \"Implement an access control mechanism to restrict who can call setRecipient.\"\n}"
+        },
+        "error": null
+      },
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/logic_02.sol",
+        "contract_name": "SafeZeroAddressCheck",
+        "function_name": "setRecipient",
+        "signature": "function setRecipient(address _recipient) external",
+        "start_line": 7,
+        "end_line": 10,
+        "vulnerability_id": "LOGIC_VALIDATION",
+        "vulnerability_name": "Logic / Validation Bug",
+        "severity": "Medium",
+        "scenario_match": true,
+        "scenario_confidence": 0.8,
+        "scenario_reason": "The function performs a sensitive action (setting a recipient) that depends on input validation (checking for zero address).",
+        "property_match": false,
+        "property_confidence": 0.9,
+        "property_reason": "The function includes a require statement that checks for a zero address, preventing the vulnerability.",
+        "evidence": [
+          "The require statement ensures _recipient is not the zero address.",
+          "No state changes occur before the validation check."
+        ],
+        "recommendation": "No changes needed; the validation is correctly implemented.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "No missing zero-address or amount/value validation pattern confirmed."
+        },
+        "llm_vulnerable": false,
+        "final_vulnerable": false,
+        "final_confidence": 0.85,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.8,\n  \"reason\": \"The function performs a sensitive action (setting a recipient) that depends on input validation (checking for zero address).\"\n}",
+          "property_raw": "{\n  \"property_match\": false,\n  \"confidence\": 0.9,\n  \"reason\": \"The function includes a require statement that checks for a zero address, preventing the vulnerability.\",\n  \"evidence\": [\n    \"The require statement ensures _recipient is not the zero address.\",\n    \"No state changes occur before the validation check.\"\n  ],\n  \"recommendation\": \"No changes needed; the validation is correctly implemented.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/positive/logic_03.sol",
+    "expected": "LOGIC_VALIDATION",
+    "should_flag": true,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/positive/logic_03.sol",
+        "contract_name": "MissingAmountCheck",
+        "function_name": "deposit",
+        "signature": "function deposit(uint256 amount) external payable",
+        "start_line": 7,
+        "end_line": 9,
+        "vulnerability_id": "LOGIC_VALIDATION",
+        "vulnerability_name": "Logic / Validation Bug",
+        "severity": "Medium",
+        "scenario_match": true,
+        "scenario_confidence": 0.8,
+        "scenario_reason": "The function performs a sensitive action (updating balances) without any input validation or sanity checks.",
+        "property_match": true,
+        "property_confidence": 0.9,
+        "property_reason": "The function lacks validation checks for the deposit amount, allowing unintended state changes.",
+        "evidence": [
+          "No checks for zero or negative amounts before updating balances.",
+          "The absence of require statements to validate the input."
+        ],
+        "recommendation": "Add require(amount > 0, 'Amount must be greater than zero');",
+        "static_check": {
+          "applied": true,
+          "passed": true,
+          "details": "Missing validation patterns detected: missing_amount_check."
+        },
+        "llm_vulnerable": true,
+        "final_vulnerable": true,
+        "final_confidence": 0.85,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.8,\n  \"reason\": \"The function performs a sensitive action (updating balances) without any input validation or sanity checks.\"\n}",
+          "property_raw": "{\n  \"property_match\": true,\n  \"confidence\": 0.9,\n  \"reason\": \"The function lacks validation checks for the deposit amount, allowing unintended state changes.\",\n  \"evidence\": [\n    \"No checks for zero or negative amounts before updating balances.\",\n    \"The absence of require statements to validate the input.\"\n  ],\n  \"recommendation\": \"Add require(amount > 0, 'Amount must be greater than zero');\"\n}"
+        },
+        "error": null
+      }
+    ]
+  },
+  {
+    "path": "./datasets/negative/logic_04.sol",
+    "expected": "LOGIC_VALIDATION",
+    "should_flag": false,
+    "results": [
+      {
+        "provider": "gpt",
+        "file": "./datasets/negative/logic_04.sol",
+        "contract_name": "SafeAmountCheck",
+        "function_name": "deposit",
+        "signature": "function deposit(uint256 amount) external payable",
+        "start_line": 7,
+        "end_line": 10,
+        "vulnerability_id": "LOGIC_VALIDATION",
+        "vulnerability_name": "Logic / Validation Bug",
+        "severity": "Medium",
+        "scenario_match": true,
+        "scenario_confidence": 0.8,
+        "scenario_reason": "The function performs a sensitive action (depositing funds) that depends on input validation (amount > 0).",
+        "property_match": false,
+        "property_confidence": 0.9,
+        "property_reason": "The function includes a validation check for the amount being greater than zero, preventing unintended execution.",
+        "evidence": [
+          "The require statement ensures amount > 0 before proceeding.",
+          "No state changes occur before the validation check."
+        ],
+        "recommendation": "Maintain the current validation check to ensure safe execution.",
+        "static_check": {
+          "applied": true,
+          "passed": false,
+          "details": "No missing zero-address or amount/value validation pattern confirmed."
+        },
+        "llm_vulnerable": false,
+        "final_vulnerable": false,
+        "final_confidence": 0.85,
+        "raw": {
+          "scenario_raw": "{\n  \"scenario_match\": true,\n  \"confidence\": 0.8,\n  \"reason\": \"The function performs a sensitive action (depositing funds) that depends on input validation (amount > 0).\"\n}",
+          "property_raw": "{\n  \"property_match\": false,\n  \"confidence\": 0.9,\n  \"reason\": \"The function includes a validation check for the amount being greater than zero, preventing unintended execution.\",\n  \"evidence\": [\n    \"The require statement ensures amount > 0 before proceeding.\",\n    \"No state changes occur before the validation check.\"\n  ],\n  \"recommendation\": \"Maintain the current validation check to ensure safe execution.\"\n}"
+        },
+        "error": null
+      }
+    ]
+  }
+]

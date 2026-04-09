@@ -73,13 +73,23 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             return False
 
     if vulnerability["id"] == "LOGIC_VALIDATION":
-        if not (
-            "address " in code
-            or "amount" in code
-            or "value" in code
-            or "msg.value" in code
-        ):
-            return False
+        signature = function_data.get("signature", "").lower()
+
+        address_input_like = (
+            "address " in signature
+            or "address payable" in signature
+        )
+
+        amount_input_like = (
+            "uint" in signature
+            and (
+                " amount" in signature
+                or "(uint" in signature
+                or "msg.value" in code
+            )
+        )
+
+        return address_input_like or amount_input_like
 
     return True
 
@@ -263,9 +273,9 @@ def analyze_file(filepath: str) -> list[dict]:
 
     for function_data in functions:
         function_data["behavior"] = extract_behavior(function_data["code"])
-        print("\n=== FUNCTION ===")
-        print(function_data["function_name"])
-        print(function_data["behavior"])
+        #print("\n=== FUNCTION ===")
+        #print(function_data["function_name"])
+        #print(function_data["behavior"])
 
         if DEBUG_BEHAVIOR_ONLY:
             continue

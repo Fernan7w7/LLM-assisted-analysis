@@ -1,170 +1,175 @@
+# evaluate.py
+import os
+import csv
 import json
 from pathlib import Path
-from collections import defaultdict
 
-LABELS_PATH = Path("datasets/labels.json")
-REPORTS_DIR = Path("reports")
+from pipeline.runner import analyze_file
 
+# -----------------------------
+# CONFIG
+# -----------------------------
+CASES = [
+    # DOS
+    {"path": "./datasets/positive/dos_01_real_auction.sol", "expected": "DOS_EXTERNAL", "should_flag": True},
+    {"path": "./datasets/negative/dos_03_pull_payment_safe.sol", "expected": "DOS_EXTERNAL", "should_flag": False},
 
-def normalize_label_path(p: str) -> str:
-    p = p.strip().replace("\\", "/")
-    if p.startswith("datasets/"):
-        p = p[len("datasets/"):]
-    return p
+    # Reentrancy
+    {"path": "./datasets/positive/reentrancy_01.sol", "expected": "REENTRANCY", "should_flag": True},
+    {"path": "./datasets/negative/reentrancy_02.sol", "expected": "REENTRANCY", "should_flag": False},
 
+    # Access Control
+    {"path": "./datasets/positive/access_01.sol", "expected": "ACCESS_CONTROL", "should_flag": True},
+    {"path": "./datasets/negative/access_02.sol", "expected": "ACCESS_CONTROL", "should_flag": False},
 
-def normalize_report_path(p: str) -> str:
-    p = p.strip().replace("\\", "/")
-    if p.startswith("datasets/"):
-        p = p[len("datasets/"):]
-    return p
+    # Delegatecall Misuse
+    {"path": "./datasets/positive/delegatecall_01.sol", "expected": "DELEGATECALL_MISUSE", "should_flag": True},
+    {"path": "./datasets/negative/delegatecall_02.sol", "expected": "DELEGATECALL_MISUSE", "should_flag": False},
 
+    # Logic / Validation
+    {"path": "./datasets/positive/logic_01.sol", "expected": "LOGIC_VALIDATION", "should_flag": True},
+    {"path": "./datasets/negative/logic_02.sol", "expected": "LOGIC_VALIDATION", "should_flag": False},
+    {"path": "./datasets/positive/logic_03.sol", "expected": "LOGIC_VALIDATION", "should_flag": True},
+    {"path": "./datasets/negative/logic_04.sol", "expected": "LOGIC_VALIDATION", "should_flag": False},
+]
 
-def safe_div(a: float, b: float) -> float:
-    return a / b if b else 0.0
+OUTPUT_DIR = Path("evaluation_outputs")
+OUTPUT_DIR.mkdir(exist_ok=True)
 
+# -----------------------------
+# HELPERS
+# -----------------------------
+def get_case_prediction(results, expected_vuln_id):
+    """
+    Returns:
+      predicted_flag: bool
+      matched_result: dict | None
+    """
+    matched = [
+        r for r in results
+        if r.get("vulnerability_id") == expected_vuln_id
+    ]
 
-def f1_score(precision: float, recall: float) -> float:
-    return 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    final_matches = [r for r in matched if r.get("final_vulnerable") is True]
 
+    if final_matches:
+        return True, final_matches[0]
 
-def load_labels():
-    with LABELS_PATH.open("r", encoding="utf-8") as f:
-        raw = json.load(f)
-
-    labels = {}
-    for item in raw:
-        key = (normalize_label_path(item["file"]), item["vulnerability_id"])
-        labels[key] = {
-            "expected": bool(item["expected"]),
-            "affected_functions": item.get("affected_functions"),
-            "notes": item.get("notes", ""),
-            "category": item.get("category"),
-            "split": item.get("split"),
-        }
-    return labels
-
-
-def load_reports():
-    grouped = defaultdict(list)
-
-    for report_file in REPORTS_DIR.glob("*.json"):
-        with report_file.open("r", encoding="utf-8") as f:
-            rows = json.load(f)
-
-        for row in rows:
-            file_key = normalize_report_path(row["file"])
-            vuln_key = row["vulnerability_id"]
-            grouped[(file_key, vuln_key)].append(row)
-
-    return grouped
+    return False, matched[0] if matched else None
 
 
-def reduce_provider_predictions(rows):
-    provider_preds = {}
-    for row in rows:
-        provider = row["provider"]
-        provider_preds[provider] = bool(row.get("final_vulnerable", False))
-    return provider_preds
+def safe_get(dct, key, default=None):
+    return dct.get(key, default) if isinstance(dct, dict) else default
 
 
-def reduce_final_prediction(rows):
-    return any(bool(r.get("final_vulnerable", False)) for r in rows)
+# -----------------------------
+# MAIN
+# -----------------------------
+def main():
+    rows = []
+    all_raw = []
 
-
-def compute_metrics(records, actor_name):
     tp = fp = tn = fn = 0
 
-    for rec in records:
-        expected = rec["expected"]
-        predicted = rec["predicted"]
+    for case in CASES:
+        path = case["path"]
+        expected = case["expected"]
+        should_flag = case["should_flag"]
 
-        if predicted and expected:
-            tp += 1
-        elif predicted and not expected:
-            fp += 1
-        elif not predicted and not expected:
-            tn += 1
-        else:
-            fn += 1
-
-    precision = safe_div(tp, tp + fp)
-    recall = safe_div(tp, tp + fn)
-    f1 = f1_score(precision, recall)
-    accuracy = safe_div(tp + tn, tp + tn + fp + fn)
-
-    print(f"\n=== {actor_name} ===")
-    print(f"TP={tp} FP={fp} TN={tn} FN={fn}")
-    print(f"Precision={precision:.3f}")
-    print(f"Recall={recall:.3f}")
-    print(f"F1={f1:.3f}")
-    print(f"Accuracy={accuracy:.3f}")
-
-    return {
-        "tp": tp,
-        "fp": fp,
-        "tn": tn,
-        "fn": fn,
-        "precision": precision,
-        "recall": recall,
-        "f1": f1,
-        "accuracy": accuracy,
-    }
-
-
-def main():
-    labels = load_labels()
-    reports = load_reports()
-
-    provider_records = defaultdict(list)
-    final_records = []
-
-    missing = []
-
-    for key, label_info in labels.items():
-        rows = reports.get(key, [])
-        expected = label_info["expected"]
-
-        if not rows:
-            missing.append(key)
+        if not os.path.exists(path):
+            print(f"[WARN] Missing file: {path}")
             continue
 
-        provider_preds = reduce_provider_predictions(rows)
-        final_pred = reduce_final_prediction(rows)
-
-        final_records.append({
-            "key": key,
+        print(f"\nRunning: {path}")
+        results = analyze_file(path)
+        all_raw.append({
+            "path": path,
             "expected": expected,
-            "predicted": final_pred,
+            "should_flag": should_flag,
+            "results": results
         })
 
-        for provider in ["gpt", "claude", "gemini"]:
-            pred = provider_preds.get(provider, False)
-            provider_records[provider].append({
-                "key": key,
-                "expected": expected,
-                "predicted": pred,
-            })
+        predicted_flag, matched_result = get_case_prediction(results, expected)
 
-    if missing:
-        print("Missing report entries for:")
-        for file_path, vuln_id in missing:
-            print(f"  - {file_path} :: {vuln_id}")
+        if should_flag and predicted_flag:
+            outcome = "TP"
+            tp += 1
+        elif not should_flag and predicted_flag:
+            outcome = "FP"
+            fp += 1
+        elif not should_flag and not predicted_flag:
+            outcome = "TN"
+            tn += 1
+        else:
+            outcome = "FN"
+            fn += 1
 
-    print(f"\nEvaluated {len(final_records)} labeled cases.")
+        row = {
+            "file": path,
+            "expected_vulnerability": expected,
+            "should_flag": should_flag,
+            "predicted_flag": predicted_flag,
+            "outcome": outcome,
+            "predicted_vulnerability": safe_get(matched_result, "vulnerability_id"),
+            "function_name": safe_get(matched_result, "function_name"),
+            "scenario_match": safe_get(matched_result, "scenario_match"),
+            "property_match": safe_get(matched_result, "property_match"),
+            "final_vulnerable": safe_get(matched_result, "final_vulnerable"),
+            "scenario_reason": safe_get(matched_result, "scenario_reason"),
+            "property_reason": safe_get(matched_result, "property_reason"),
+            "static_check_passed": safe_get(safe_get(matched_result, "static_check", {}), "passed"),
+            "static_check_details": safe_get(safe_get(matched_result, "static_check", {}), "details"),
+            "provider": safe_get(matched_result, "provider"),
+        }
+        rows.append(row)
 
-    results = {}
-    for provider in ["gpt", "claude", "gemini"]:
-        results[provider] = compute_metrics(provider_records[provider], provider.upper())
+    total = tp + fp + tn + fn
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0
+    accuracy = (tp + tn) / total if total else 0.0
 
-    results["final"] = compute_metrics(final_records, "FINAL HYBRID")
+    metrics = {
+        "TP": tp,
+        "FP": fp,
+        "TN": tn,
+        "FN": fn,
+        "Precision": round(precision, 4),
+        "Recall": round(recall, 4),
+        "F1": round(f1, 4),
+        "Accuracy": round(accuracy, 4),
+        "Total": total,
+    }
 
-    print("\n=== Per-case summary ===")
-    for rec in final_records:
-        file_path, vuln_id = rec["key"]
-        print(f"{file_path} :: {vuln_id} | expected={rec['expected']} final={rec['predicted']}")
+    # Save CSV
+    csv_path = OUTPUT_DIR / "evaluation_summary.csv"
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()) if rows else [
+            "file", "expected_vulnerability", "should_flag", "predicted_flag", "outcome"
+        ])
+        writer.writeheader()
+        writer.writerows(rows)
 
-    return results
+    # Save JSON
+    json_path = OUTPUT_DIR / "evaluation_raw.json"
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(all_raw, f, indent=2)
+
+    metrics_path = OUTPUT_DIR / "evaluation_metrics.json"
+    with open(metrics_path, "w", encoding="utf-8") as f:
+        json.dump(metrics, f, indent=2)
+
+    print("\n==============================")
+    print("EVALUATION SUMMARY")
+    print("==============================")
+    print(f"TP={tp} FP={fp} TN={tn} FN={fn}")
+    print(f"Precision={precision:.4f}")
+    print(f"Recall={recall:.4f}")
+    print(f"F1={f1:.4f}")
+    print(f"Accuracy={accuracy:.4f}")
+    print(f"\nSaved CSV: {csv_path}")
+    print(f"Saved raw JSON: {json_path}")
+    print(f"Saved metrics JSON: {metrics_path}")
 
 
 if __name__ == "__main__":

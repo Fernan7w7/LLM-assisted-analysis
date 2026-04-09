@@ -1,5 +1,5 @@
 VULNERABILITY_SCENARIOS = [
-        {
+    {
         "id": "DOS_EXTERNAL",
         "name": "DoS by External Contract",
         "scenario": "The function makes an external call inside critical control flow.",
@@ -18,54 +18,35 @@ VULNERABILITY_SCENARIOS = [
                 "revert(",
                 "currentLeader",
                 "lastUser",
-                "pendingWithdrawals"
+                "pendingwithdrawals"
             ]
         }
     },
     {
-        "id": "SLIPPAGE",
-        "name": "Slippage",
-        "scenario": "The function performs a swap, liquidity operation, or asset exchange.",
-        "property": "The function does not enforce a minimum output amount or equivalent slippage protection, allowing adverse execution or sandwich-style loss.",
+        "id": "ACCESS_CONTROL",
+        "name": "Access Control",
+        "scenario": "The function performs a privileged or sensitive action such as changing critical state, moving funds, or changing configuration.",
+        "property": "The function lacks an appropriate authorization check such as onlyOwner, role validation, or an explicit msg.sender permission check.",
         "severity": "High",
-        "confirmation_type": "slippage_check",
+        "confirmation_type": "access_control_check",
         "filters": {
-            "function_keywords": ["swap", "buy", "sell", "addliquidity", "removeliquidity"],
+            "function_keywords": [
+                "withdraw", "sweep", "setowner", "setadmin", "pause", "unpause",
+                "mint", "burn", "upgrade", "set", "configure", "initialize", "execute"
+            ],
             "content_keywords": [
-                "swapexactethfortokens",
-                "swapexacttokensfortokens",
-                "swapexacttokensforeth",
-                "amountoutmin",
-                "minout",
-                "minimum",
-                "getamountsout",
-                "router"
-            ]
-        }
-    },
-    {
-        "id": "UNAUTHORIZED_TRANSFER",
-        "name": "Unauthorized Transfer",
-        "scenario": "The function moves tokens or assets to another address, especially from an address that may differ from msg.sender, or performs a transfer operation that may require authorization.",
-        "property": "There is no proper authorization check such as allowance validation, approval validation, ownership validation, or equivalent access control before the transfer occurs.",
-        "severity": "High",
-        "confirmation_type": "authorization_check",
-        "filters": {
-            "function_keywords": ["transfer", "transferfrom", "move", "sweep", "spend", "pay", "payout"],
-            "content_keywords": [
-                "transferfrom",
-                ".transferfrom(",
-                ".transfer(",
-                "allowance(",
-                ".allowance(",
-                "approve(",
-                "approved",
-                "ownerof(",
-                "isapprovedforall",
                 "onlyowner",
                 "msg.sender == owner",
                 "require(msg.sender == owner",
-                "to.transfer("
+                "owner =",
+                "admin =",
+                "transfer(",
+                ".call{",
+                ".call(",
+                "selfdestruct",
+                "delegatecall",
+                "pause =",
+                "mint("
             ]
         }
     },
@@ -121,18 +102,13 @@ VULNERABILITY_SCENARIOS = [
         "confirmation_type": "logic_validation_check",
         "filters": {
             "function_keywords": [
-                "set", "update", "transfer", "mint", "burn", "withdraw",
-                "deposit", "claim", "initialize", "configure"
+                "set", "update", "mint", "burn", "deposit", "initialize", "configure"
             ],
             "content_keywords": [
                 "address ",
                 "amount",
-                "value",
                 "recipient",
-                "to",
                 "msg.value",
-                "transfer(",
-                ".call{",
                 "mint(",
                 "burn("
             ]
