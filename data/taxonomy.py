@@ -68,5 +68,27 @@ VULNERABILITY_SCENARIOS = [
                 "to.transfer("
             ]
         }
+    },
+    {
+        "id": "REENTRANCY",
+        "name": "Reentrancy",
+        "scenario": "The function makes an external call before finishing critical state updates.",
+        "property": "A malicious callee can re-enter before the contract updates its internal state, allowing repeated execution against stale state.",
+        "severity": "High",
+        "confirmation_type": "reentrancy_pattern",
+        "filters": {
+            "function_keywords": ["withdraw", "claim", "redeem", "borrow", "unstake", "exit"],
+            "content_keywords": [
+                ".call(",
+                ".call{",
+                ".call.value(",
+                ".send(",
+                ".transfer(",
+                "balances[",
+                "msg.sender",
+                "bool success",
+                "require(success)"
+            ]
+        }
     }
 ]
