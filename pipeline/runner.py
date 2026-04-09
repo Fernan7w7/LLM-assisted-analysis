@@ -20,16 +20,18 @@ from static_checks.basic_checks import (
 
 PROVIDERS = {
     "gpt": analyze_with_gpt,
-    "claude": analyze_with_claude,
-    "gemini": analyze_with_gemini,
+    #claude": analyze_with_claude,
+    #"gemini": analyze_with_gemini,
 }
 
-DEBUG_BEHAVIOR_ONLY = True
+DEBUG_BEHAVIOR_ONLY = False
 
 def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
     filters = vulnerability.get("filters", {})
     function_keywords = [k.lower() for k in filters.get("function_keywords", [])]
     content_keywords = [k.lower() for k in filters.get("content_keywords", [])]
+    behavior = function_data.get("behavior", {})
+    signals = behavior.get("signals", {})
 
     fn_name = function_data["function_name"].lower()
     code = function_data["code"].lower()
@@ -47,6 +49,9 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         return False
 
     if vulnerability["id"] == "DOS_EXTERNAL":
+        if not signals.get("has_external_call", False):
+            return False
+
         owner_payout_pattern = (
             ("onlyowner" in code_compact or "msg.sender == owner" in code_compact)
             and (".transfer(" in code_compact or ".call{" in code_compact)
@@ -54,6 +59,10 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         )
 
         if owner_payout_pattern:
+            return False
+    
+    if vulnerability["id"] == "REENTRANCY":
+        if not signals.get("has_external_call", False):
             return False
 
     return True
