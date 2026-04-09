@@ -68,6 +68,10 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         if not signals.get("has_external_call", False):
             return False
 
+    if vulnerability["id"] == "DELEGATECALL_MISUSE":
+        if not signals.get("has_delegatecall", False):
+            return False
+
     return True
 
 
