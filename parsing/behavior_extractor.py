@@ -56,8 +56,32 @@ def extract_behavior(function_code: str) -> dict:
     delegatecall_uses_msg_data = "delegatecall(msg.data)" in compact or ".delegatecall(msg.data)" in compact
     delegatecall_uses_variable_target = False
     if has_delegatecall:
-        variable_target_terms = ["target.delegatecall", "implementation.delegatecall", "logic.delegatecall", "_impl.delegatecall", "impl.delegatecall"]
+        variable_target_terms = [
+            "target.delegatecall", "implementation.delegatecall",
+            "logic.delegatecall", "_impl.delegatecall", "impl.delegatecall"
+        ]
         delegatecall_uses_variable_target = any(term in compact for term in variable_target_terms)
+
+    has_zero_address_check = (
+        "address(0)" in compact and
+        ("require(" in compact or "if(" in compact or "if (" in lowered)
+    )
+
+    amount_terms = ["amount", "value", "msg.value"]
+    amount_check_patterns = [
+        ">0", "!=0", "> 0", "!= 0", "greaterthan0"
+    ]
+    has_amount_check = False
+    if any(term in lowered for term in amount_terms):
+        if (
+            "require(amount > 0" in lowered
+            or "require(amount != 0" in lowered
+            or "require(value > 0" in lowered
+            or "require(value != 0" in lowered
+            or "require(msg.value > 0" in lowered
+            or "require(msg.value != 0" in lowered
+        ):
+            has_amount_check = True
 
     return {
         "operation_sequence": ops,
@@ -69,5 +93,7 @@ def extract_behavior(function_code: str) -> dict:
             "writes_after_call": write_after_call,
             "delegatecall_uses_msg_data": delegatecall_uses_msg_data,
             "delegatecall_uses_variable_target": delegatecall_uses_variable_target,
+            "has_zero_address_check": has_zero_address_check,
+            "has_amount_check": has_amount_check,
         }
     }

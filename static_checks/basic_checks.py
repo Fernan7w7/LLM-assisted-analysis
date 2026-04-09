@@ -261,6 +261,51 @@ def confirm_delegatecall_misuse(function_data: dict) -> dict:
         "details": "Delegatecall detected, but no strong misuse pattern was confirmed."
     }
 
+def confirm_logic_validation(function_data: dict) -> dict:
+    behavior = function_data.get("behavior", {})
+    signals = behavior.get("signals", {})
+    code = function_data.get("code", "").lower()
+    signature = function_data.get("signature", "").lower()
+
+    missing_zero_address_check = False
+    missing_amount_check = False
+    matched_subpatterns = []
+
+    address_input_like = (
+        "address " in signature
+        or "address payable" in signature
+        or " recipient" in code
+        or " to" in code
+    )
+
+    amount_input_like = (
+        "uint" in signature
+        or "amount" in code
+        or "value" in code
+        or "msg.value" in code
+    )
+
+    if address_input_like and not signals.get("has_zero_address_check", False):
+        missing_zero_address_check = True
+        matched_subpatterns.append("missing_zero_address_check")
+
+    if amount_input_like and not signals.get("has_amount_check", False):
+        missing_amount_check = True
+        matched_subpatterns.append("missing_amount_check")
+
+    if matched_subpatterns:
+        return {
+            "applied": True,
+            "passed": True,
+            "details": f"Missing validation patterns detected: {', '.join(matched_subpatterns)}."
+        }
+
+    return {
+        "applied": True,
+        "passed": False,
+        "details": "No missing zero-address or amount/value validation pattern confirmed."
+    }
+
 def confirm_slippage_check(function_code: str) -> dict:
     lower = function_code.lower()
     compact = " ".join(lower.split())

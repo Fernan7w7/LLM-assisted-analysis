@@ -111,5 +111,31 @@ VULNERABILITY_SCENARIOS = [
                 "delegatecall(msg.data)"
             ]
         }
+    },
+    {
+        "id": "LOGIC_VALIDATION",
+        "name": "Logic / Validation Bug",
+        "scenario": "The function performs a sensitive action that depends on input validation or sanity checks.",
+        "property": "A required validation is missing, allowing unsafe or unintended execution.",
+        "severity": "Medium",
+        "confirmation_type": "logic_validation_check",
+        "filters": {
+            "function_keywords": [
+                "set", "update", "transfer", "mint", "burn", "withdraw",
+                "deposit", "claim", "initialize", "configure"
+            ],
+            "content_keywords": [
+                "address ",
+                "amount",
+                "value",
+                "recipient",
+                "to",
+                "msg.value",
+                "transfer(",
+                ".call{",
+                "mint(",
+                "burn("
+            ]
+        }
     }
 ]

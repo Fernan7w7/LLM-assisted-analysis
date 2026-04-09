@@ -18,6 +18,7 @@ from static_checks.basic_checks import (
     confirm_reentrancy_pattern,
     confirm_access_control,
     confirm_delegatecall_misuse,
+    confirm_logic_validation,
 )
 
 
@@ -72,6 +73,15 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         if not signals.get("has_delegatecall", False):
             return False
 
+    if vulnerability["id"] == "LOGIC_VALIDATION":
+        if not (
+            "address " in code
+            or "amount" in code
+            or "value" in code
+            or "msg.value" in code
+        ):
+            return False
+
     return True
 
 def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
@@ -102,6 +112,9 @@ def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
 
     if confirmation_type == "authorization_check":
         return confirm_authorization_check(code)
+
+    if confirmation_type == "logic_validation_check":
+        return confirm_logic_validation(function_data)
 
     return {
         "applied": False,
