@@ -11,7 +11,7 @@ def extract_behavior(function_code: str) -> dict:
         if re.match(r"^(if|else if|else|for|while)\b", line):
             continue
 
-        if "delegatecall" in line:
+        if ".delegatecall(" in line:
             ops.append({"type": "DELEGATECALL", "detail": line})
         elif (
             ".call(" in line

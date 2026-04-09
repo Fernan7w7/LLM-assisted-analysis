@@ -74,9 +74,6 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
 
     return True
 
-
-# 4) MODIFY pipeline/runner.py inside apply_static_check()
-
 def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
     confirmation_type = vulnerability.get("confirmation_type")
     code = function_data["code"]
