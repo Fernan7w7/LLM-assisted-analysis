@@ -90,5 +90,33 @@ VULNERABILITY_SCENARIOS = [
                 "require(success)"
             ]
         }
+    },
+    {
+        "id": "ACCESS_CONTROL",
+        "name": "Access Control",
+        "scenario": "The function performs a privileged or sensitive action such as changing critical state, moving funds, or changing configuration.",
+        "property": "The function lacks an appropriate authorization check such as onlyOwner, role validation, or an explicit msg.sender permission check.",
+        "severity": "High",
+        "confirmation_type": "access_control_check",
+        "filters": {
+            "function_keywords": [
+                "withdraw", "sweep", "setowner", "setadmin", "pause", "unpause",
+                "mint", "burn", "upgrade", "set", "configure", "initialize"
+            ],
+            "content_keywords": [
+                "onlyowner",
+                "msg.sender == owner",
+                "require(msg.sender == owner",
+                "owner =",
+                "admin =",
+                "transfer(",
+                ".call{",
+                ".call(",
+                "selfdestruct",
+                "delegatecall",
+                "pause =",
+                "mint("
+            ]
+        }
     }
 ]
