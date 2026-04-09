@@ -15,7 +15,10 @@ from static_checks.basic_checks import (
     confirm_external_call_dos,
     confirm_order_issue,
     confirm_slippage_check,
+    confirm_reentrancy_pattern,
+    confirm_access_control,
 )
+
 
 
 PROVIDERS = {
@@ -68,9 +71,17 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
     return True
 
 
+# 4) MODIFY pipeline/runner.py inside apply_static_check()
+
 def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
     confirmation_type = vulnerability.get("confirmation_type")
     code = function_data["code"]
+
+    if confirmation_type == "reentrancy_pattern":
+        return confirm_reentrancy_pattern(function_data)
+
+    if confirmation_type == "access_control_check":
+        return confirm_access_control(function_data)
 
     if confirmation_type == "order_check":
         return confirm_order_issue(
@@ -93,7 +104,6 @@ def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
         "passed": False,
         "details": "No static check configured."
     }
-
 
 def analyze_function_with_provider(provider_name: str, provider_fn, filepath: str, function_data: dict, vulnerability: dict) -> dict | None:
     scenario_prompt = build_scenario_prompt(function_data, vulnerability)

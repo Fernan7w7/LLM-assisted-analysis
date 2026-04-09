@@ -150,6 +150,73 @@ def confirm_authorization_check(function_code: str) -> dict:
         "details": "transferFrom-like token movement found without obvious authorization checks."
     }
 
+def confirm_reentrancy_pattern(function_data: dict) -> dict:
+    behavior = function_data.get("behavior", {})
+    signals = behavior.get("signals", {})
+
+    has_external_call = signals.get("has_external_call", False)
+    writes_after_call = signals.get("writes_after_call", False)
+
+    if not has_external_call:
+        return {
+            "applied": True,
+            "passed": False,
+            "details": "No external call detected."
+        }
+
+    if writes_after_call:
+        return {
+            "applied": True,
+            "passed": True,
+            "details": "External call occurs before a later state write, matching a reentrancy risk pattern."
+        }
+
+    return {
+        "applied": True,
+        "passed": False,
+        "details": "External call detected, but no state write appears after the call."
+    }
+
+def confirm_access_control(function_data: dict) -> dict:
+    behavior = function_data.get("behavior", {})
+    signals = behavior.get("signals", {})
+    code = function_data.get("code", "").lower()
+    fn_name = function_data.get("function_name", "").lower()
+
+    sensitive_name = any(term in fn_name for term in [
+        "withdraw", "sweep", "set", "mint", "burn", "pause",
+        "upgrade", "initialize", "admin", "owner"
+    ])
+
+    sensitive_action = (
+        signals.get("has_external_call", False)
+        or "selfdestruct" in code
+        or "delegatecall" in code
+        or "owner =" in code
+        or "admin =" in code
+        or "pause =" in code
+    )
+
+    if not (sensitive_name or sensitive_action):
+        return {
+            "applied": True,
+            "passed": False,
+            "details": "No clearly sensitive action detected."
+        }
+
+    if signals.get("has_auth_check", False):
+        return {
+            "applied": True,
+            "passed": False,
+            "details": "Sensitive action detected, but an authorization check is present."
+        }
+
+    return {
+        "applied": True,
+        "passed": True,
+        "details": "Sensitive action detected with no authorization check."
+    }
+
 def confirm_slippage_check(function_code: str) -> dict:
     lower = function_code.lower()
     compact = " ".join(lower.split())
