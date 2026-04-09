@@ -217,6 +217,50 @@ def confirm_access_control(function_data: dict) -> dict:
         "details": "Sensitive action detected with no authorization check."
     }
 
+def confirm_delegatecall_misuse(function_data: dict) -> dict:
+    behavior = function_data.get("behavior", {})
+    signals = behavior.get("signals", {})
+    code = function_data.get("code", "").lower()
+    signature = function_data.get("signature", "").lower()
+
+    if not signals.get("has_delegatecall", False):
+        return {
+            "applied": True,
+            "passed": False,
+            "details": "No delegatecall detected."
+        }
+
+    risky_target = signals.get("delegatecall_uses_variable_target", False)
+    risky_data = signals.get("delegatecall_uses_msg_data", False)
+    no_auth = not signals.get("has_auth_check", False)
+
+    if risky_target and risky_data and no_auth:
+        return {
+            "applied": True,
+            "passed": True,
+            "details": "Delegatecall uses a variable target and forwarded calldata without authorization."
+        }
+
+    if risky_target and no_auth:
+        return {
+            "applied": True,
+            "passed": True,
+            "details": "Delegatecall uses a variable target without authorization."
+        }
+
+    if risky_data and no_auth:
+        return {
+            "applied": True,
+            "passed": True,
+            "details": "Delegatecall forwards msg.data without authorization."
+        }
+
+    return {
+        "applied": True,
+        "passed": False,
+        "details": "Delegatecall detected, but no strong misuse pattern was confirmed."
+    }
+
 def confirm_slippage_check(function_code: str) -> dict:
     lower = function_code.lower()
     compact = " ".join(lower.split())
