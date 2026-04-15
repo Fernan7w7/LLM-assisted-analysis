@@ -18,6 +18,8 @@ from static_checks.basic_checks import (
     confirm_access_control,
     confirm_delegatecall_misuse,
     confirm_logic_validation,
+    confirm_nuanced_access_control,
+    confirm_asset_locking,
 )
 
 
@@ -40,37 +42,12 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
     code = function_data["code"].lower()
     code_compact = " ".join(code.split())
 
-    name_match = any(keyword in fn_name for keyword in function_keywords) if function_keywords else True
-    content_match = any(
-        keyword in code or keyword in code_compact
-        for keyword in content_keywords
-    ) if content_keywords else True
-
-    basic_match = name_match or content_match
-
-    if not basic_match:
-        return False
-
-    if vulnerability["id"] == "DOS_EXTERNAL":
-        if not signals.get("has_external_call", False):
-            return False
-
-        owner_payout_pattern = (
-            ("onlyowner" in code_compact or "msg.sender == owner" in code_compact)
-            and (".transfer(" in code_compact or ".call{" in code_compact)
-            and "transferfrom" not in code_compact
-        )
-
-        if owner_payout_pattern:
-            return False
-    
+    # --- IR-FIRST SPECIAL CASES ---
     if vulnerability["id"] == "REENTRANCY":
-        if not signals.get("has_external_call", False):
-            return False
+        return signals.get("has_external_call", False)
 
     if vulnerability["id"] == "DELEGATECALL_MISUSE":
-        if not signals.get("has_delegatecall", False):
-            return False
+        return signals.get("has_delegatecall", False)
 
     if vulnerability["id"] == "LOGIC_VALIDATION":
         signature = function_data.get("signature", "").lower()
@@ -91,6 +68,32 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
 
         return address_input_like or amount_input_like
 
+    # --- GENERIC KEYWORD/CONTENT FILTERS ---
+    name_match = any(keyword in fn_name for keyword in function_keywords) if function_keywords else True
+    content_match = any(
+        keyword in code or keyword in code_compact
+        for keyword in content_keywords
+    ) if content_keywords else True
+
+    basic_match = name_match or content_match
+
+    if not basic_match:
+        return False
+
+    # --- CATEGORY-SPECIFIC REFINEMENTS ---
+    if vulnerability["id"] == "DOS_EXTERNAL":
+        if not signals.get("has_external_call", False):
+            return False
+
+        owner_payout_pattern = (
+            ("onlyowner" in code_compact or "msg.sender == owner" in code_compact)
+            and (".transfer(" in code_compact or ".call{" in code_compact)
+            and "transferfrom" not in code_compact
+        )
+
+        if owner_payout_pattern:
+            return False
+
     return True
 
 def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
@@ -106,6 +109,15 @@ def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
     if confirmation_type == "delegatecall_check":
         return confirm_delegatecall_misuse(function_data)
 
+    if confirmation_type == "logic_validation_check":
+        return confirm_logic_validation(function_data)
+
+    if confirmation_type == "nuanced_access_control_check":
+        return confirm_nuanced_access_control(function_data)
+
+    if confirmation_type == "asset_locking_check":
+        return confirm_asset_locking(function_data)
+
     if confirmation_type == "order_check":
         return confirm_order_issue(
             code,
@@ -116,14 +128,8 @@ def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
     if confirmation_type == "external_call_criticality":
         return confirm_external_call_dos(code)
 
-    if confirmation_type == "slippage_check":
-        return confirm_slippage_check(code)
-
     if confirmation_type == "authorization_check":
         return confirm_authorization_check(code)
-
-    if confirmation_type == "logic_validation_check":
-        return confirm_logic_validation(function_data)
 
     return {
         "applied": False,
@@ -281,7 +287,20 @@ def analyze_file(filepath: str) -> list[dict]:
             continue
 
         for vulnerability in VULNERABILITY_SCENARIOS:
+            #========================DEBUG================================
+            #if function_data["function_name"] == "Collect":
+            #    print("\n=== COLLECT BEHAVIOR ===")
+            #    print(function_data["behavior"])
+            #    print("TRYING:", vulnerability["id"])
+            #==============================================================
+            
             matched = function_matches_filter(function_data, vulnerability)
+            
+            #==========================DEBUG===============================
+            #if function_data["function_name"] == "Collect":
+            #    print("MATCHED:", vulnerability["id"], matched)
+            #==============================================================
+
             if not matched:
                 continue
 
