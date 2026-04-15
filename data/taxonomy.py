@@ -157,7 +157,7 @@ VULNERABILITY_SCENARIOS = [
         "id": "ASSET_LOCKING",
         "name": "Asset Locking / Frozen Funds",
         "scenario": "A function or workflow can place Ether, tokens, or balances into a state where users or the protocol may be unable to withdraw, recover, migrate, redeem, or settle assets through the intended valid path.",
-        "property": "The vulnerability exists when contract logic can trap assets because withdrawal, recovery, migration, redemption, or settlement depends on broken, unreachable, contradictory, permanently failing, or missing conditions. A normal deposit or withdrawal function is not, by itself, an asset-locking vulnerability unless the logic can actually prevent valid asset recovery.",
+        "property": "The vulnerability exists when contract logic can trap assets because withdrawal, recovery, migration, redemption, or settlement depends on broken, unreachable, contradictory, permanently failing, or missing conditions. Do not flag a contract that clearly uses a working pull-payment, pending-withdrawal, refund, or claimable-balance mechanism that provides a valid recovery path.",
         "severity": "High",
         "confirmation_type": "asset_locking_check",
         "filters": {
@@ -168,7 +168,6 @@ VULNERABILITY_SCENARIOS = [
             "content_keywords": [
                 "locked",
                 "unlock",
-                "pending",
                 "claim",
                 "redeem",
                 "settle",
@@ -179,7 +178,8 @@ VULNERABILITY_SCENARIOS = [
                 "unclaimed",
                 "expired",
                 "timelock",
-                "vesting"
+                "vesting",
+                "stuck"
             ]
         }
     }

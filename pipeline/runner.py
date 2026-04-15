@@ -120,9 +120,22 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         # Normal self-withdraw pattern: user withdraws own balance and only their own call can fail.
         self_withdraw_pattern = (
             function_data["function_name"].lower() == "withdraw"
-            and ("balances[msg.sender]" in code_compact or "balanceof[msg.sender]" in code_compact)
+            and (
+                "balances[msg.sender]" in code_compact
+                or "balanceof[msg.sender]" in code_compact
+                or "pendingwithdrawals[msg.sender]" in code_compact
+                or "pending[msg.sender]" in code_compact
+                or "credits[msg.sender]" in code_compact
+            )
             and ("=0;" in code_compact or "= 0;" in code.lower())
-            and ("msg.sender.call{" in code_compact or "msg.sender.call.value(" in code_compact or "msg.sender.transfer(" in code_compact or "msg.sender.send(" in code_compact)
+            and (
+                "msg.sender.call{" in code_compact
+                or "msg.sender.call.value(" in code_compact
+                or "msg.sender.transfer(" in code_compact
+                or "msg.sender.send(" in code_compact
+                or "payable(msg.sender).transfer(" in code_compact
+                or "payable(msg.sender).send(" in code_compact
+            )
         )
 
         if owner_payout_pattern or self_withdraw_pattern:
