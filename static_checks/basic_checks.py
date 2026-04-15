@@ -305,3 +305,81 @@ def confirm_logic_validation(function_data: dict) -> dict:
         "passed": False,
         "details": "No missing zero-address or amount/value validation pattern confirmed."
     }
+
+#========================================== LLM SPECIFIC CHECKS ==========================================
+def confirm_nuanced_access_control(function_data: dict) -> dict:
+    behavior = function_data.get("behavior", {})
+    signals = behavior.get("signals", {})
+    code = function_data.get("code", "").lower()
+    fn_name = function_data.get("function_name", "").lower()
+
+    privileged_name = any(term in fn_name for term in [
+        "initialize", "init", "setup", "setowner", "newowner", "deleteowner",
+        "changeowner", "setadmin", "addadmin", "removeadmin", "upgrade",
+        "migrate", "close", "settle", "execute", "finalize", "configure"
+    ])
+
+    privileged_action = (
+        "owner =" in code
+        or "owners[" in code
+        or "admin =" in code
+        or "admins[" in code
+        or "initialized =" in code
+    )
+
+    if not (privileged_name or privileged_action):
+        return {
+            "applied": True,
+            "passed": False,
+            "details": "No clearly privileged action detected."
+        }
+
+    if signals.get("has_auth_check", False):
+        return {
+            "applied": True,
+            "passed": False,
+            "details": "Privileged action detected, but an authorization check is present."
+        }
+
+    return {
+        "applied": True,
+        "passed": True,
+        "details": "Privileged action detected with no authorization check."
+    }
+
+
+def confirm_asset_locking(function_data: dict) -> dict:
+    code = function_data.get("code", "").lower()
+    fn_name = function_data.get("function_name", "").lower()
+
+    looks_like_deposit = (
+        "deposit" in fn_name
+        or "balances[" in code
+        or "msg.value" in code
+    )
+
+    suspicious_gate = (
+        "withdrawalsenabled" in code
+        or "locked" in code
+        or "unlock" in code
+    )
+
+    if not looks_like_deposit:
+        return {
+            "applied": True,
+            "passed": False,
+            "details": "No clear asset-holding behavior detected."
+        }
+
+    if suspicious_gate and "require(withdrawalsenabled" in code:
+        return {
+            "applied": True,
+            "passed": True,
+            "details": "Asset movement depends on a gating condition that may leave funds unrecoverable."
+        }
+
+    return {
+        "applied": True,
+        "passed": False,
+        "details": "No clear asset-locking pattern confirmed."
+    }

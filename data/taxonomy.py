@@ -113,5 +113,66 @@ VULNERABILITY_SCENARIOS = [
                 "burn("
             ]
         }
+    },
+    {
+        "id": "NUANCED_ACCESS_CONTROL",
+        "name": "Nuanced Access Control",
+        "scenario": "A function or workflow performs a privileged, security-relevant, or governance-relevant action, but authorization is indirect, inconsistent, incomplete, or bypassable.",
+        "property": "The contract does not reliably enforce that only the intended actor or role can perform the action across all relevant paths.",
+        "severity": "High",
+        "confirmation_type": "nuanced_access_control_check",
+        "filters": {
+            "function_keywords": [
+                "initialize", "init", "setup", "setowner", "newowner", "deleteowner",
+                "changeowner", "setadmin", "addadmin", "removeadmin", "upgrade",
+                "migrate", "close", "settle", "execute", "finalize", "configure"
+            ],
+            "content_keywords": [
+                "owner",
+                "admin",
+                "initializer",
+                "init",
+                "governance",
+                "participant",
+                "msg.sender",
+                "onlyowner",
+                "onlyadmin",
+                "require(msg.sender",
+                "require(owner",
+                "require(admin"
+            ]
+        }
+    },
+    {
+        "id": "ASSET_LOCKING",
+        "name": "Asset Locking / Frozen Funds",
+        "scenario": "A function or workflow can place Ether, tokens, or balances into a state where they cannot be withdrawn, recovered, migrated, or settled through any valid intended path.",
+        "property": "The contract logic can permanently or effectively trap assets because withdrawal, recovery, migration, or settlement depends on broken, unreachable, or unsafe conditions.",
+        "severity": "High",
+        "confirmation_type": "asset_locking_check",
+        "filters": {
+            "function_keywords": [
+                "deposit", "withdraw", "claim", "redeem", "settle", "close",
+                "refund", "migrate", "recover", "sweep", "release", "unlock"
+            ],
+            "content_keywords": [
+                "balance",
+                "balances",
+                "pending",
+                "locked",
+                "unlock",
+                "claim",
+                "withdraw",
+                "redeem",
+                "settle",
+                "migrate",
+                "refund",
+                "transfer",
+                "call.value",
+                ".call{",
+                ".transfer(",
+                ".send("
+            ]
+        }
     }
 ]
