@@ -10,6 +10,7 @@ from parsing.solidity_parser import load_contract, extract_functions
 from pipeline.reporting import print_summary, save_json
 from prompts.templates import build_property_prompt, build_scenario_prompt
 from parsing.behavior_extractor import extract_behavior
+from pipeline.triage import triage_results
 from static_checks.basic_checks import (
     confirm_authorization_check,
     confirm_external_call_dos,
@@ -315,7 +316,7 @@ def analyze_file(filepath: str) -> list[dict]:
                 if result is not None:
                     results.append(result)
 
-    return results
+    return triage_results(results)
 
 
 def main():

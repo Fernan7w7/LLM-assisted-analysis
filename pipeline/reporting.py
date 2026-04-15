@@ -21,15 +21,37 @@ def print_summary(results: list[dict]):
     vulnerable = [r for r in results if r.get("final_vulnerable")]
     print(f"Final vulnerable results: {len(vulnerable)}")
 
+    primary_findings = [r for r in vulnerable if r.get("finding_role") == "primary"]
+    overlap_findings = [r for r in vulnerable if r.get("finding_role") == "overlap"]
+    secondary_findings = [r for r in vulnerable if r.get("finding_role") == "secondary"]
+
+    print(f"Primary findings: {len(primary_findings)}")
+    print(f"Overlap findings: {len(overlap_findings)}")
+    print(f"Secondary findings: {len(secondary_findings)}")
+
     grouped = {}
-    for result in vulnerable:
+    for result in primary_findings:
         provider = result["provider"]
         grouped.setdefault(provider, []).append(result)
 
     for provider, items in grouped.items():
-        print(f"\n{provider.upper()} ({len(items)} findings)")
+        print(f"\n{provider.upper()} ({len(items)} primary findings)")
         for item in items:
             print(f"  - {item['function_name']} -> {item['vulnerability_name']}")
             print(f"    Reason: {item.get('property_reason')}")
             if item.get("recommendation"):
                 print(f"    Fix: {item['recommendation']}")
+
+            related = [
+                r for r in overlap_findings + secondary_findings
+                if r.get("provider") == item.get("provider")
+                and r.get("file") == item.get("file")
+                and r.get("contract_name") == item.get("contract_name")
+                and r.get("function_name") == item.get("function_name")
+            ]
+
+            if related:
+                print("    Related:")
+                for rel in related:
+                    role = rel.get("finding_role", "related")
+                    print(f"      - [{role}] {rel['vulnerability_name']}")
