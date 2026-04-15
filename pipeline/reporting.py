@@ -21,9 +21,9 @@ def print_summary(results: list[dict]):
     vulnerable = [r for r in results if r.get("final_vulnerable")]
     print(f"Final vulnerable results: {len(vulnerable)}")
 
-    primary_findings = [r for r in vulnerable if r.get("finding_role") == "primary"]
-    overlap_findings = [r for r in vulnerable if r.get("finding_role") == "overlap"]
-    secondary_findings = [r for r in vulnerable if r.get("finding_role") == "secondary"]
+    primary_findings = [r for r in vulnerable if r.get("triage_label") == "primary"]
+    overlap_findings = [r for r in vulnerable if r.get("triage_label") == "overlap"]
+    secondary_findings = [r for r in vulnerable if r.get("triage_label") == "secondary"]
 
     print(f"Primary findings: {len(primary_findings)}")
     print(f"Overlap findings: {len(overlap_findings)}")
@@ -53,5 +53,5 @@ def print_summary(results: list[dict]):
             if related:
                 print("    Related:")
                 for rel in related:
-                    role = rel.get("finding_role", "related")
+                    role = rel.get("triage_label", "related")
                     print(f"      - [{role}] {rel['vulnerability_name']}")

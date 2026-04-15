@@ -59,9 +59,17 @@ def extract_behavior(function_code: str) -> dict:
     has_require = "require(" in lowered_code or "if(" in compact_code
 
     call_idx = next((i for i, op in enumerate(ops) if op["type"] in {"CALL", "DELEGATECALL"}), None)
-    write_after_call = False
+
+    writes_before_call = False
+    writes_after_call = False
+    cei_safe_order = False
+
     if call_idx is not None:
-        write_after_call = any(op["type"] == "WRITE" for op in ops[call_idx + 1:])
+        writes_before_call = any(op["type"] == "WRITE" for op in ops[:call_idx])
+        writes_after_call = any(op["type"] == "WRITE" for op in ops[call_idx + 1:])
+
+        if writes_before_call and not writes_after_call:
+            cei_safe_order = True
 
     delegatecall_uses_msg_data = (
         "delegatecall(msg.data)" in compact_code
@@ -102,7 +110,9 @@ def extract_behavior(function_code: str) -> dict:
             "has_delegatecall": has_delegatecall,
             "has_auth_check": has_auth_check,
             "has_require": has_require,
-            "writes_after_call": write_after_call,
+            "writes_before_call": writes_before_call,
+            "writes_after_call": writes_after_call,
+            "cei_safe_order": cei_safe_order,
             "delegatecall_uses_msg_data": delegatecall_uses_msg_data,
             "delegatecall_uses_variable_target": delegatecall_uses_variable_target,
             "has_zero_address_check": has_zero_address_check,

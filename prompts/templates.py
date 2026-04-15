@@ -12,6 +12,17 @@ def _format_behavior(function_data: dict) -> str:
 def build_scenario_prompt(function_data: dict, vulnerability: dict) -> str:
     behavior_text = _format_behavior(function_data)
 
+    extra_rules = ""
+    if vulnerability.get("id") == "REENTRANCY":
+        extra_rules = """
+Reentrancy-specific rules:
+- Do NOT mark reentrancy only because an external call exists.
+- If the relevant balance or sensitive state is updated before the external call, treat that as evidence against reentrancy.
+- If the behavior summary shows writes_before_call = true and cei_safe_order = true, that is strong evidence against reentrancy.
+- A reentrancy scenario should require that the external call happens before the critical state update, or that stale state can still be exploited during re-entry.
+- Checks-Effects-Interactions means performing critical state updates before the external interaction, not after it.
+"""
+
     return f"""
 You are analyzing a Solidity smart contract function for a possible vulnerability scenario.
 
@@ -45,6 +56,7 @@ Instructions:
 - Focus only on whether the behavioral scenario is present.
 - Do NOT assume a vulnerability exists unless the function behavior clearly matches the scenario.
 - Be conservative and avoid overclaiming.
+{extra_rules}
 
 Return JSON only in exactly this format:
 {{
@@ -63,6 +75,18 @@ Rules:
 
 def build_property_prompt(function_data: dict, vulnerability: dict) -> str:
     behavior_text = _format_behavior(function_data)
+
+    extra_rules = ""
+    if vulnerability.get("id") == "REENTRANCY":
+        extra_rules = """
+Reentrancy-specific rules:
+- Distinguish unsafe order from CEI-safe order.
+- Unsafe order: external call before the critical state update.
+- Safe order: critical state update before the external call.
+- If the behavior summary shows writes_before_call = true and cei_safe_order = true, property_match should normally be false.
+- Do NOT claim reentrancy if the user balance or other critical state is already fully updated before the external call, unless there is clear evidence that another important state remains stale across re-entry.
+- Checks-Effects-Interactions means performing critical state updates before the external interaction, not after it.
+"""
 
     return f"""
 You are analyzing a Solidity smart contract function for a specific vulnerability property.
@@ -98,6 +122,7 @@ Instructions:
 - Decide whether the risky property is actually present, not just superficially similar.
 - Look for operation order, state changes, external calls, authorization checks, and validation logic.
 - Be conservative and avoid overclaiming.
+{extra_rules}
 
 Return JSON only in exactly this format:
 {{

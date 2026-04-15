@@ -45,7 +45,32 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
 
     # --- IR-FIRST SPECIAL CASES ---
     if vulnerability["id"] == "REENTRANCY":
-        return signals.get("has_external_call", False)
+        if not signals.get("has_external_call", False):
+            return False
+
+        fn_name = function_data["function_name"].lower()
+        code = function_data["code"].lower()
+
+        reentrancy_name_hints = ["withdraw", "claim", "redeem", "borrow", "unstake", "exit"]
+        has_name_hint = any(hint in fn_name for hint in reentrancy_name_hints)
+
+        reusable_accounting_hints = (
+            "balances[" in code
+            or "balanceof[" in code
+            or "credits[" in code
+            or "shares[" in code
+            or "claimable[" in code
+            or "pending[" in code
+            or "allowance[" in code
+        )
+
+        state_reset_hints = (
+            "= 0;" in code
+            or "=0;" in code
+            or "-=" in code
+        )
+
+        return has_name_hint or (reusable_accounting_hints and state_reset_hints)
 
     if vulnerability["id"] == "DELEGATECALL_MISUSE":
         return signals.get("has_delegatecall", False)
@@ -88,11 +113,19 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
 
         owner_payout_pattern = (
             ("onlyowner" in code_compact or "msg.sender == owner" in code_compact)
-            and (".transfer(" in code_compact or ".call{" in code_compact)
+            and (".transfer(" in code_compact or ".call{" in code_compact or ".call.value(" in code_compact)
             and "transferfrom" not in code_compact
         )
 
-        if owner_payout_pattern:
+        # Normal self-withdraw pattern: user withdraws own balance and only their own call can fail.
+        self_withdraw_pattern = (
+            function_data["function_name"].lower() == "withdraw"
+            and ("balances[msg.sender]" in code_compact or "balanceof[msg.sender]" in code_compact)
+            and ("=0;" in code_compact or "= 0;" in code.lower())
+            and ("msg.sender.call{" in code_compact or "msg.sender.call.value(" in code_compact or "msg.sender.transfer(" in code_compact or "msg.sender.send(" in code_compact)
+        )
+
+        if owner_payout_pattern or self_withdraw_pattern:
             return False
 
     return True
@@ -230,9 +263,20 @@ def analyze_function_with_provider(provider_name: str, provider_fn, filepath: st
         and property_data.get("property_match", False)
     )
 
-    final_vulnerable = llm_vulnerable and (
-        not static_result["applied"] or static_result["passed"]
-    )
+    STRUCTURAL_CATEGORIES = {
+        "REENTRANCY",
+        "DELEGATECALL_MISUSE",
+        "DOS_EXTERNAL",
+        "ACCESS_CONTROL",
+    }
+
+    CONTEXTUAL_CATEGORIES = {
+        "NUANCED_ACCESS_CONTROL",
+        "ASSET_LOCKING",
+        "LOGIC_VALIDATION",
+    }
+
+    static_corroborated = static_result.get("passed", False)
 
     final_confidence = 0.0
     try:
@@ -241,6 +285,19 @@ def analyze_function_with_provider(provider_name: str, provider_fn, filepath: st
         final_confidence = round((s_conf + p_conf) / 2, 4)
     except Exception:
         final_confidence = 0.0
+
+    if llm_vulnerable:
+        if vulnerability["id"] in CONTEXTUAL_CATEGORIES:
+            verdict = "llm_positive_contextual"
+            decision_basis = "llm_decision_behavior_aware_contextual"
+        else:
+            verdict = "llm_positive_structural"
+            decision_basis = "llm_decision_behavior_aware_structural"
+    else:
+        verdict = "rejected"
+        decision_basis = "llm_negative"
+
+    final_vulnerable = llm_vulnerable
 
     return {
         "provider": provider_name,
@@ -262,8 +319,11 @@ def analyze_function_with_provider(provider_name: str, provider_fn, filepath: st
         "evidence": property_data.get("evidence", []),
         "recommendation": property_data.get("recommendation"),
         "static_check": static_result,
+        "static_corroborated": static_corroborated,
         "llm_vulnerable": llm_vulnerable,
         "final_vulnerable": final_vulnerable,
+        "verdict": verdict,
+        "decision_basis": decision_basis,
         "final_confidence": final_confidence,
         "raw": {
             "scenario_raw": scenario_resp["raw"],
