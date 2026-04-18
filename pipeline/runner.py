@@ -102,7 +102,14 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             or "delegate" in fn_name
         )
 
-        if not (externally_influenced or execution_wrapper):
+        # Unprotected delegatecall with no auth check is also a misuse candidate
+        # regardless of parameter types (e.g. hardcoded-target but publicly callable).
+        unprotected_delegatecall = (
+            not signals.get("has_auth_check", False)
+            and " only" not in signature
+        )
+
+        if not (externally_influenced or execution_wrapper or unprotected_delegatecall):
             return False
 
         # Exclude auth-guarded functions with no externally-provided address or data
@@ -136,7 +143,7 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         sensitive_name_hints = [
             "initialize", "init", "setup", "configure", "set",
             "update", "mint", "burn", "finalize", "execute",
-            "settle", "close", "advance"
+            "settle", "close", "advance", "write"
         ]
         has_sensitive_name = any(hint in fn_name for hint in sensitive_name_hints)
 
@@ -159,8 +166,8 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         getter_like_name = fn_name.startswith(("get", "view", "read"))
         view_like = " view " in signature or signature.endswith(" view") or " pure " in signature or signature.endswith(" pure")
 
-        # Exclude role-guarded admin functions — they are configuration, not workflow logic.
-        strong_role_guard = " only" in signature
+        # Exclude role-guarded and OZ-initializer functions — configuration, not workflow logic.
+        strong_role_guard = " only" in signature or " initializer" in signature
 
         # Only keep logic-validation on functions that look stateful / workflow-sensitive.
         if getter_like_name or view_like or strong_role_guard:
