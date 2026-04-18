@@ -1,137 +1,322 @@
 [
   {
-    "file": "positive/dos_01_real_auction.sol",
+    "file": "reentrancy/positive/reentrancy_01.sol",
+    "vulnerability_id": "REENTRANCY",
+    "category": "REENTRANCY",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["withdraw"],
+    "source": "synthetic",
+    "notes": "Classic CEI violation — state updated after external call."
+  },
+  {
+    "file": "reentrancy/positive/simple_dao.sol",
+    "vulnerability_id": "REENTRANCY",
+    "category": "REENTRANCY",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["withdraw"],
+    "source": "public — SmartBugs / SWC-107",
+    "notes": "Canonical SimpleDAO reentrancy: ETH sent before credit zeroed."
+  },
+  {
+    "file": "reentrancy/negative/reentrancy_02.sol",
+    "vulnerability_id": "REENTRANCY",
+    "category": "REENTRANCY",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Uses ReentrancyGuard; safe."
+  },
+  {
+    "file": "reentrancy/negative/reentrancy_cei_safe.sol",
+    "vulnerability_id": "REENTRANCY",
+    "category": "REENTRANCY",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Correct CEI ordering — negative control for simple_dao."
+  },
+  {
+    "file": "dos/positive/dos_01_real_auction.sol",
     "vulnerability_id": "DOS_EXTERNAL",
     "category": "DOS",
     "split": "positive",
     "expected": true,
     "affected_functions": ["bid"],
+    "source": "synthetic",
     "notes": "External call with require can revert and block execution."
   },
   {
-    "file": "positive/dos_02_refund_required.sol",
+    "file": "dos/positive/king_of_ether.sol",
+    "vulnerability_id": "DOS_EXTERNAL",
+    "category": "DOS",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["claimThrone"],
+    "source": "public — SmartBugs / SWC-113",
+    "notes": "KingOfEther: inline transfer to previous king enables permanent DoS."
+  },
+  {
+    "file": "dos/positive/dos_02_refund_required.sol",
     "vulnerability_id": "DOS_EXTERNAL",
     "category": "DOS",
     "split": "positive",
     "expected": true,
     "affected_functions": ["participate"],
+    "source": "synthetic",
     "notes": "External call with require(success) causes DoS risk."
   },
   {
-    "file": "negative/dos_03_pull_payment_safe.sol",
+    "file": "dos/negative/dos_03_pull_payment_safe.sol",
     "vulnerability_id": "DOS_EXTERNAL",
     "category": "DOS",
     "split": "negative",
     "expected": false,
     "affected_functions": null,
+    "source": "synthetic",
     "notes": "Uses pull-payment pattern."
   },
   {
-    "file": "negative/dos_04_external_noncritical.sol",
+    "file": "dos/negative/dos_04_external_noncritical.sol",
     "vulnerability_id": "DOS_EXTERNAL",
     "category": "DOS",
     "split": "negative",
     "expected": false,
     "affected_functions": null,
+    "source": "synthetic",
     "notes": "External call is non-critical and ignored."
   },
   {
-    "file": "edge/dos_05_call_ignored.sol",
+    "file": "dos/edge/dos_05_call_ignored.sol",
     "vulnerability_id": "DOS_EXTERNAL",
     "category": "DOS",
     "split": "edge",
     "expected": false,
     "affected_functions": null,
+    "source": "synthetic",
     "notes": "External call exists but does not revert execution."
   },
   {
-    "file": "positive/slippage_01_no_min_output.sol",
-    "vulnerability_id": "SLIPPAGE",
-    "category": "SLIPPAGE",
+    "file": "delegatecall/positive/delegatecall_01.sol",
+    "vulnerability_id": "DELEGATECALL_MISUSE",
+    "category": "DELEGATECALL",
     "split": "positive",
     "expected": true,
-    "affected_functions": ["swap"],
-    "notes": "Swap uses amountOutMin = 0 with no additional minimum-output protection."
+    "affected_functions": ["execute"],
+    "source": "synthetic",
+    "notes": "Unprotected delegatecall to caller-controlled target."
   },
   {
-    "file": "positive/slippage_02_missing_check.sol",
-    "vulnerability_id": "SLIPPAGE",
-    "category": "SLIPPAGE",
+    "file": "delegatecall/positive/proxy_unguarded.sol",
+    "vulnerability_id": "DELEGATECALL_MISUSE",
+    "category": "DELEGATECALL",
     "split": "positive",
     "expected": true,
-    "affected_functions": ["swap"],
-    "notes": "Token swap uses amountOutMin = 0 and does not enforce a minimum received amount."
+    "affected_functions": ["fallback", "setImplementation"],
+    "source": "public — SWC-112 / Trail of Bits not-so-smart-contracts",
+    "notes": "Parity-style proxy: setImplementation has no access control."
   },
   {
-    "file": "negative/slippage_03_with_min_output.sol",
-    "vulnerability_id": "SLIPPAGE",
-    "category": "SLIPPAGE",
+    "file": "delegatecall/negative/delegatecall_02.sol",
+    "vulnerability_id": "DELEGATECALL_MISUSE",
+    "category": "DELEGATECALL",
     "split": "negative",
     "expected": false,
     "affected_functions": null,
-    "notes": "Swap passes a user-supplied minimum output value to the router."
+    "source": "synthetic",
+    "notes": "Delegatecall guarded by owner check."
   },
   {
-    "file": "negative/slippage_04_manual_check.sol",
-    "vulnerability_id": "SLIPPAGE",
-    "category": "SLIPPAGE",
-    "split": "negative",
-    "expected": false,
-    "affected_functions": null,
-    "notes": "Swap output is checked manually with a require after execution."
-  },
-  {
-    "file": "edge/slippage_05_price_read_only.sol",
-    "vulnerability_id": "SLIPPAGE",
-    "category": "SLIPPAGE",
-    "split": "edge",
-    "expected": false,
-    "affected_functions": null,
-    "notes": "Contract only reads price quotes and does not execute a swap."
-  },
-  {
-    "file": "positive/unauth_01_transferfrom_no_check.sol",
-    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
-    "category": "UNAUTHORIZED_TRANSFER",
+    "file": "nuanced_access_control/positive/nuac_02_reinit.sol",
+    "vulnerability_id": "NUANCED_ACCESS_CONTROL",
+    "category": "NUANCED_ACCESS_CONTROL",
     "split": "positive",
     "expected": true,
-    "affected_functions": ["moveTokens"],
-    "notes": "Calls transferFrom on an arbitrary from address without any authorization validation."
+    "affected_functions": ["initialize"],
+    "source": "synthetic — based on C4/Sherlock recurring finding",
+    "notes": "Missing initialization guard on upgradeable proxy."
   },
   {
-    "file": "positive/unauth_02_arbitrary_spend.sol",
-    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
-    "category": "UNAUTHORIZED_TRANSFER",
+    "file": "nuanced_access_control/positive/nuac_03_accept_bypass.sol",
+    "vulnerability_id": "NUANCED_ACCESS_CONTROL",
+    "category": "NUANCED_ACCESS_CONTROL",
     "split": "positive",
     "expected": true,
-    "affected_functions": ["sweep"],
-    "notes": "Allows arbitrary victim address to be used in transferFrom without permission checks."
+    "affected_functions": ["acceptOwnership"],
+    "source": "synthetic — based on governance audit findings",
+    "notes": "Two-step transfer with wrong caller check — onlyOwner instead of pendingOwner."
   },
   {
-    "file": "negative/unauth_03_with_allowance_check.sol",
-    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
-    "category": "UNAUTHORIZED_TRANSFER",
+    "file": "nuanced_access_control/positive/nuanced_access_01.sol",
+    "vulnerability_id": "NUANCED_ACCESS_CONTROL",
+    "category": "NUANCED_ACCESS_CONTROL",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Nuanced access control positive case."
+  },
+  {
+    "file": "nuanced_access_control/positive/access_01.sol",
+    "vulnerability_id": "NUANCED_ACCESS_CONTROL",
+    "category": "NUANCED_ACCESS_CONTROL",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Vulnerable vault with missing access guard."
+  },
+  {
+    "file": "nuanced_access_control/negative/nuac_02_safe_twostep.sol",
+    "vulnerability_id": "NUANCED_ACCESS_CONTROL",
+    "category": "NUANCED_ACCESS_CONTROL",
     "split": "negative",
     "expected": false,
     "affected_functions": null,
-    "notes": "Checks allowance before executing transferFrom."
+    "source": "synthetic",
+    "notes": "Correct two-step ownership with initialized guard."
   },
   {
-    "file": "negative/unauth_04_owner_treasury_transfer.sol",
-    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
-    "category": "UNAUTHORIZED_TRANSFER",
+    "file": "nuanced_access_control/negative/nuanced_access_01_safe.sol",
+    "vulnerability_id": "NUANCED_ACCESS_CONTROL",
+    "category": "NUANCED_ACCESS_CONTROL",
     "split": "negative",
     "expected": false,
     "affected_functions": null,
-    "notes": "Transfers contract-owned tokens with owner-only access control; does not move tokens from an arbitrary victim."
+    "source": "synthetic",
+    "notes": "Nuanced access control negative case."
   },
   {
-    "file": "edge/unauth_05_eth_payout_edge.sol",
-    "vulnerability_id": "UNAUTHORIZED_TRANSFER",
-    "category": "UNAUTHORIZED_TRANSFER",
-    "split": "edge",
+    "file": "nuanced_access_control/negative/access_02.sol",
+    "vulnerability_id": "NUANCED_ACCESS_CONTROL",
+    "category": "NUANCED_ACCESS_CONTROL",
+    "split": "negative",
     "expected": false,
     "affected_functions": null,
-    "notes": "Performs owner-authorized ETH payout, not token transferFrom from another user."
+    "source": "synthetic",
+    "notes": "Safe vault with correct access guards."
+  },
+  {
+    "file": "asset_locking/positive/locking_access_01.sol",
+    "vulnerability_id": "ASSET_LOCKING",
+    "category": "ASSET_LOCKING",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Withdrawals gated behind flag that can never be enabled."
+  },
+  {
+    "file": "asset_locking/positive/locking_03_burn_redeem.sol",
+    "vulnerability_id": "ASSET_LOCKING",
+    "category": "ASSET_LOCKING",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["redeem"],
+    "source": "synthetic — based on DeFi vault redeem findings",
+    "notes": "Shares burned before external transfer — assets locked on transfer failure."
+  },
+  {
+    "file": "asset_locking/positive/locking_04_renounced_admin.sol",
+    "vulnerability_id": "ASSET_LOCKING",
+    "category": "ASSET_LOCKING",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["renounceAdmin"],
+    "source": "synthetic — based on reward distribution audit findings",
+    "notes": "Admin renounced before claim gate opened; assets permanently locked."
+  },
+  {
+    "file": "asset_locking/negative/locking_access_02.sol",
+    "vulnerability_id": "ASSET_LOCKING",
+    "category": "ASSET_LOCKING",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Withdrawal flag properly managed."
+  },
+  {
+    "file": "asset_locking/negative/locking_03_safe_redeem.sol",
+    "vulnerability_id": "ASSET_LOCKING",
+    "category": "ASSET_LOCKING",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Transfer before debit — safe ordering."
+  },
+  {
+    "file": "logic_validation/positive/logic_01.sol",
+    "vulnerability_id": "LOGIC_VALIDATION",
+    "category": "LOGIC_VALIDATION",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Missing zero-address check on recipient."
+  },
+  {
+    "file": "logic_validation/positive/logic_03.sol",
+    "vulnerability_id": "LOGIC_VALIDATION",
+    "category": "LOGIC_VALIDATION",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Missing amount validation."
+  },
+  {
+    "file": "logic_validation/positive/logic_05_phase_skip.sol",
+    "vulnerability_id": "LOGIC_VALIDATION",
+    "category": "LOGIC_VALIDATION",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["settle"],
+    "source": "synthetic — based on auction/escrow audit findings",
+    "notes": "Missing phase enforcement — settle() callable before endAuction()."
+  },
+  {
+    "file": "logic_validation/positive/logic_06_vesting_reinit.sol",
+    "vulnerability_id": "LOGIC_VALIDATION",
+    "category": "LOGIC_VALIDATION",
+    "split": "positive",
+    "expected": true,
+    "affected_functions": ["setupVesting"],
+    "source": "synthetic — based on token grant audit findings",
+    "notes": "Vesting schedule overwritable after claims begin; claimed reset to 0."
+  },
+  {
+    "file": "logic_validation/negative/logic_02.sol",
+    "vulnerability_id": "LOGIC_VALIDATION",
+    "category": "LOGIC_VALIDATION",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Zero-address check present."
+  },
+  {
+    "file": "logic_validation/negative/logic_04.sol",
+    "vulnerability_id": "LOGIC_VALIDATION",
+    "category": "LOGIC_VALIDATION",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Amount validation present."
+  },
+  {
+    "file": "logic_validation/negative/logic_05_safe_auction.sol",
+    "vulnerability_id": "LOGIC_VALIDATION",
+    "category": "LOGIC_VALIDATION",
+    "split": "negative",
+    "expected": false,
+    "affected_functions": null,
+    "source": "synthetic",
+    "notes": "Correct phase enforcement on all state transitions."
   }
 ]
