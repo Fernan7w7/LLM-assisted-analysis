@@ -13,8 +13,10 @@ def extract_behavior(function_code: str) -> dict:
             ops.append({"type": "CHECK", "detail": line})
 
         # detect delegatecall before skipping control-flow lines
+        is_call_line = False
         if ".delegatecall(" in compact:
             ops.append({"type": "DELEGATECALL", "detail": line})
+            is_call_line = True
 
         # detect external calls, including old-style call.value(...) and calls inside if(...)
         elif (
@@ -25,14 +27,16 @@ def extract_behavior(function_code: str) -> dict:
             or ".transfer(" in compact
         ):
             ops.append({"type": "CALL", "detail": line})
+            is_call_line = True
 
         # skip control-flow lines for WRITE classification only
         if re.match(r"^(if|else\s+if|else|for|while)\b", lowered):
             continue
 
-        # writes
+        # writes — skip call lines to avoid double-counting call result assignments
         if (
-            "=" in line
+            not is_call_line
+            and "=" in line
             and "==" not in line
             and "!=" not in line
             and ">=" not in line
@@ -55,6 +59,13 @@ def extract_behavior(function_code: str) -> dict:
         "onlyowner" in lowered_code
         or "msg.sender == owner" in lowered_code
         or "require(msg.sender==" in compact_code
+        or "onlyadmin" in lowered_code
+        or "onlyrole" in lowered_code
+        or "onlygov" in lowered_code
+        or "onlycaller" in lowered_code
+        or "hasrole(" in compact_code
+        or "_checkrole(" in compact_code
+        or "require(hasrole(" in compact_code
     )
     has_require = "require(" in lowered_code or "if(" in compact_code
 

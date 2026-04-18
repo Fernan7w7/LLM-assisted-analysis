@@ -2,13 +2,13 @@ from collections import defaultdict
 
 STRUCTURAL_PRIORITY = {
     "REENTRANCY": 100,
-    "DELEGATECALL_MISUSE": 95,
-    "DOS_EXTERNAL": 90,
+    "DELEGATECALL_MISUSE": 98,
+    "DOS_EXTERNAL": 80,
 }
 
 CONTEXTUAL_PRIORITY = {
+    "ASSET_LOCKING": 90,
     "NUANCED_ACCESS_CONTROL": 70,
-    "ASSET_LOCKING": 75,
     "LOGIC_VALIDATION": 60,
     "ACCESS_CONTROL": 50,
 }
@@ -21,6 +21,7 @@ DEMOTE_IF_STRUCTURAL_PRESENT = {
 
 OVERLAP_IF_STRUCTURAL_PRESENT = {
     "DOS_EXTERNAL",
+    "NUANCED_ACCESS_CONTROL",
 }
 
 def _base_priority(result: dict) -> int:
@@ -63,6 +64,11 @@ def triage_results(results: list[dict]) -> list[dict]:
 
         for r in function_results:
             r["_triage_score"] = _base_priority(r) + _confidence_score(r)
+
+        if any(r.get("vulnerability_id") == "ASSET_LOCKING" for r in function_results):
+            for r in function_results:
+                if r.get("vulnerability_id") == "DOS_EXTERNAL":
+                    r["_triage_score"] -= 15
 
         function_results.sort(
             key=lambda r: r["_triage_score"],

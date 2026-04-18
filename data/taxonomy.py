@@ -102,21 +102,29 @@ VULNERABILITY_SCENARIOS = [
     {
         "id": "LOGIC_VALIDATION",
         "name": "Logic / Validation Bug",
-        "scenario": "The function performs a sensitive action that depends on input validation or sanity checks.",
-        "property": "A required validation is missing, allowing unsafe or unintended execution.",
+        "scenario": "The function performs a sensitive state-changing action or controls an important workflow transition that depends on correct validation, phase checks, initialization conditions, or sanity constraints.",
+        "property": "The vulnerability exists when a missing or flawed validation can cause unsafe execution, broken initialization, incorrect state transition, privilege misuse, or workflow failure. Do not flag a function merely because it has parameters or lacks generic require statements. Read-only getters, helper functions, and ordinary data-access functions are not logic/validation vulnerabilities unless they directly control a sensitive state transition or critical protocol behavior.",
         "severity": "Medium",
         "confirmation_type": "logic_validation_check",
         "filters": {
             "function_keywords": [
-                "set", "update", "mint", "burn", "deposit", "initialize", "configure"
+                "initialize", "init", "setup", "configure", "set",
+                "update", "mint", "burn", "finalize", "execute",
+                "setphase", "advance", "settle", "close"
             ],
             "content_keywords": [
                 "address ",
-                "amount",
                 "recipient",
                 "msg.value",
-                "mint(",
-                "burn("
+                "initialize",
+                "initializer",
+                "owner =",
+                "admin =",
+                "phase",
+                "status",
+                "currentslotindex",
+                "generation",
+                "mint("
             ]
         }
     },

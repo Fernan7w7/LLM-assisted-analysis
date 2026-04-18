@@ -22,9 +22,36 @@ Reentrancy-specific rules:
 - A reentrancy scenario should require that the external call happens before the critical state update, or that stale state can still be exploited during re-entry.
 - Checks-Effects-Interactions means performing critical state updates before the external interaction, not after it.
 """
+    elif vulnerability.get("id") == "DELEGATECALL_MISUSE":
+        extra_rules = """
+Delegatecall-specific rules:
+- Do NOT mark delegatecall misuse only because delegatecall exists.
+- Treat delegatecall as risky when the target, calldata, or execution surface is externally controllable, insufficiently restricted, or can unexpectedly alter caller storage.
+- If the delegatecall target is fixed/trusted and the function is protected by a strong authorization check, that is evidence against delegatecall misuse.
+- Be careful not to confuse delegatecall misuse with generic validation or access-control issues.
+"""
+    elif vulnerability.get("id") == "ASSET_LOCKING":
+        extra_rules = """
+Asset Locking-specific rules:
+- A key pattern is irreversible state mutation before an external transfer: if tokens are burned, balances cleared, or records deleted before the transfer executes, a failed transfer permanently traps the user's assets with no recovery path.
+- Also covers: permanently gated withdrawal logic, conditions that can never be satisfied, or missing recovery mechanisms.
+- Do NOT conflate with DoS (which blocks shared protocol progress for multiple users). Asset locking affects an individual user's own assets.
+- Do NOT dismiss a scenario merely because it involves an external call — the order of operations is the key signal: irreversible state changes before the transfer create a one-way trap.
+- A protocol with a working alternative recovery path does not match this scenario.
+"""
+    elif vulnerability.get("id") == "NUANCED_ACCESS_CONTROL":
+        extra_rules = """
+Nuanced Access Control-specific rules:
+- Do NOT mark a function merely because it is public or externally callable.
+- Do NOT mark a clearly role-guarded admin function (onlyOwner, onlyAdmin, onlyRole) as a scenario match unless the guard itself is flawed, bypassable, or incorrectly scoped.
+- The scenario must involve a specific authorization flaw: a missing check on one execution path while another is guarded, an incorrect actor assumption, an initialization window where ownership can be hijacked, or a governance bypass.
+- Distinguish between 'this function is privileged' (not a vulnerability by itself) and 'this function's authorization logic is specifically broken or incomplete'.
+- Do not flag functions where the authorization structure is sound but simply involves multiple roles or modifiers.
+"""
 
     return f"""
 You are analyzing a Solidity smart contract function for a possible vulnerability scenario.
+  
 
 Your job in this stage is NOT to decide final vulnerability.
 Your only job is to decide whether the function matches the general behavioral scenario of the vulnerability.
@@ -86,6 +113,32 @@ Reentrancy-specific rules:
 - If the behavior summary shows writes_before_call = true and cei_safe_order = true, property_match should normally be false.
 - Do NOT claim reentrancy if the user balance or other critical state is already fully updated before the external call, unless there is clear evidence that another important state remains stale across re-entry.
 - Checks-Effects-Interactions means performing critical state updates before the external interaction, not after it.
+"""
+    elif vulnerability.get("id") == "DELEGATECALL_MISUSE":
+        extra_rules = """
+Delegatecall-specific rules:
+- Do NOT mark delegatecall misuse only because delegatecall exists.
+- Treat delegatecall as risky when the target, calldata, or execution surface is externally controllable, insufficiently restricted, or can unexpectedly alter caller storage.
+- If the delegatecall target is fixed/trusted and the function is protected by a strong authorization check, that is evidence against delegatecall misuse.
+- Be careful not to confuse delegatecall misuse with generic validation or access-control issues.
+"""
+    elif vulnerability.get("id") == "ASSET_LOCKING":
+        extra_rules = """
+Asset Locking-specific rules:
+- A key pattern is irreversible state mutation before an external transfer: if tokens are burned, balances cleared, or records deleted before the transfer executes, a failed transfer permanently traps the user's assets with no recovery path.
+- Also covers: permanently gated withdrawal logic, conditions that can never be satisfied, or missing recovery mechanisms.
+- Do NOT conflate with DoS (which blocks shared protocol progress for multiple users). Asset locking affects an individual user's own assets.
+- Do NOT dismiss this property merely because it involves an external call — the order of operations is the key signal: irreversible state changes before the transfer create a one-way trap.
+- A protocol with a working alternative recovery path does not satisfy this property.
+"""
+    elif vulnerability.get("id") == "NUANCED_ACCESS_CONTROL":
+        extra_rules = """
+Nuanced Access Control-specific rules:
+- Do NOT confirm this property merely because the function is public or externally callable.
+- Do NOT confirm for a clearly role-guarded admin function (onlyOwner, onlyAdmin, onlyRole) unless the guard itself is flawed, bypassable, or incorrectly scoped.
+- The property is present when a specific authorization flaw exists: a missing check on one execution path while another is guarded, an incorrect actor assumption, an initialization window where ownership can be hijacked, or a governance bypass.
+- The presence of multiple roles or modifiers is not itself a flaw — confirm only when the logic is specifically broken or incomplete.
+- Do not flag functions where the authorization structure is sound but simply involves multiple roles.
 """
 
     return f"""
