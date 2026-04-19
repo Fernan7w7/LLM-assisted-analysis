@@ -70,6 +70,21 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             or "-=" in code
         )
 
+        # Exclude owner-payout functions: auth-guarded admin withdrawals that send
+        # only to the owner state variable are not meaningful reentrancy candidates.
+        signature = function_data.get("signature", "").lower()
+        owner_payout = (
+            signals.get("has_auth_check", False)
+            and " only" in signature
+            and (
+                "payable(owner).transfer(" in code_compact
+                or "payable(owner).call{" in code_compact
+                or "owner.transfer(" in code_compact
+            )
+        )
+        if owner_payout:
+            return False
+
         return has_name_hint or (reusable_accounting_hints and state_reset_hints)
 
     if vulnerability["id"] == "DELEGATECALL_MISUSE":
@@ -123,6 +138,15 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         if signals.get("has_auth_check", False) and no_external_input:
             return False
 
+        # Exclude modifier-guarded payload wrappers (onlyOwner + bytes param but no address param):
+        # passing bytes/calldata to a fixed trusted target is a normal admin proxy operation.
+        if (
+            signals.get("has_auth_check", False)
+            and " only" in signature
+            and "address" not in signature
+        ):
+            return False
+
         return True
 
     
@@ -173,7 +197,7 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         if getter_like_name or view_like or strong_role_guard:
             return False
 
-        return has_sensitive_name or ((address_input_like or "msg.value" in code_compact) and state_transition_hints)
+        return has_sensitive_name or (address_input_like and state_transition_hints)
 
     # --- GENERIC KEYWORD/CONTENT FILTERS ---
     name_match = any(keyword in fn_name for keyword in function_keywords) if function_keywords else True
@@ -200,15 +224,9 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
 
         # Normal self-withdraw pattern: user withdraws own balance and only their own call can fail.
         self_withdraw_pattern = (
-            "withdraw" in function_data["function_name"].lower()
-            and (
-                "balances[msg.sender]" in code_compact
-                or "balanceof[msg.sender]" in code_compact
-                or "pendingwithdrawals[msg.sender]" in code_compact
-                or "pending[msg.sender]" in code_compact
-                or "credits[msg.sender]" in code_compact
-            )
-            and ("=0;" in code_compact or "= 0;" in code.lower())
+            any(hint in function_data["function_name"].lower() for hint in ["withdraw", "redeem", "unstake"])
+            and "[msg.sender]" in code_compact  # any per-user mapping update
+            and ("-=" in code_compact or "=0;" in code_compact or "= 0;" in code.lower())
             and (
                 "msg.sender.call{" in code_compact
                 or "msg.sender.call.value(" in code_compact

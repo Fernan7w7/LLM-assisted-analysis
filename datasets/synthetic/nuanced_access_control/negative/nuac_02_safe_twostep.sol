@@ -2,20 +2,16 @@
 pragma solidity ^0.8.0;
 
 // Safe: proper two-step ownership transfer where acceptOwnership is restricted
-// to pendingOwner, and initialize is protected by a one-time guard.
+// to pendingOwner. Ownership set in constructor — no frontrunnable initialize.
 contract SafeOwnableVault {
     address public owner;
     address public pendingOwner;
-    bool private _initialized;
 
     event OwnershipTransferStarted(address indexed current, address indexed pending);
     event OwnershipTransferred(address indexed oldOwner, address indexed newOwner);
 
-    // Safe: one-time initialization guard prevents re-entry
-    function initialize(address _owner) external {
-        require(!_initialized, "Already initialized");
+    constructor(address _owner) {
         require(_owner != address(0), "Zero address");
-        _initialized = true;
         owner = _owner;
         emit OwnershipTransferred(address(0), _owner);
     }

@@ -70,6 +70,13 @@ def triage_results(results: list[dict]) -> list[dict]:
                 if r.get("vulnerability_id") == "DOS_EXTERNAL":
                     r["_triage_score"] -= 15
 
+        # When LOGIC_VALIDATION co-occurs with contextual categories on the same function,
+        # LOGIC_VALIDATION is typically the root cause — boost it above both.
+        if any(r.get("vulnerability_id") == "LOGIC_VALIDATION" for r in function_results):
+            for r in function_results:
+                if r.get("vulnerability_id") in {"ASSET_LOCKING", "NUANCED_ACCESS_CONTROL"}:
+                    r["_triage_score"] -= 40
+
         function_results.sort(
             key=lambda r: r["_triage_score"],
             reverse=True

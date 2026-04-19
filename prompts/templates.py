@@ -37,6 +37,8 @@ Asset Locking-specific rules:
 - Also covers: permanently gated withdrawal logic, conditions that can never be satisfied, or missing recovery mechanisms.
 - Do NOT conflate with DoS (which blocks shared protocol progress for multiple users). Asset locking affects an individual user's own assets.
 - Do NOT dismiss a scenario merely because it involves an external call — the order of operations is the key signal: irreversible state changes before the transfer create a one-way trap.
+- Do NOT flag a correctly phase-gated or condition-gated settlement/finalization function (e.g. settle() only callable after endAuction()) merely because it transfers ETH/tokens. If the conditions are reachable through normal protocol operation, this is NOT asset locking.
+- Do NOT flag CEI-compliant functions (state updated before external call + nonReentrant) as asset locking — if the transfer fails, the full transaction reverts and state is restored.
 - A protocol with a working alternative recovery path does not match this scenario.
 """
     elif vulnerability.get("id") == "NUANCED_ACCESS_CONTROL":
@@ -47,6 +49,8 @@ Nuanced Access Control-specific rules:
 - The scenario must involve a specific authorization flaw: a missing check on one execution path while another is guarded, an incorrect actor assumption, an initialization window where ownership can be hijacked, or a governance bypass.
 - Distinguish between 'this function is privileged' (not a vulnerability by itself) and 'this function's authorization logic is specifically broken or incomplete'.
 - Do not flag functions where the authorization structure is sound but simply involves multiple roles or modifiers.
+- IMPORTANT sub-pattern — wrong guard on two-step transfer: if a function named acceptOwnership (or similar) uses the CURRENT owner's guard (onlyOwner) instead of checking msg.sender == pendingOwner, this is a critical flaw. The pending owner can never accept, defeating the purpose of the two-step pattern. HOWEVER, if the function correctly uses require(msg.sender == pendingOwner), that IS the right guard — do NOT flag it.
+- IMPORTANT sub-pattern — missing initialization guard: if an initialize() function has no caller restriction (only a one-time flag like require(!initialized)), any attacker who frontruns the deployment can set themselves as owner. A constructor-based initialization does NOT have this problem.
 """
 
     return f"""
@@ -129,6 +133,8 @@ Asset Locking-specific rules:
 - Also covers: permanently gated withdrawal logic, conditions that can never be satisfied, or missing recovery mechanisms.
 - Do NOT conflate with DoS (which blocks shared protocol progress for multiple users). Asset locking affects an individual user's own assets.
 - Do NOT dismiss this property merely because it involves an external call — the order of operations is the key signal: irreversible state changes before the transfer create a one-way trap.
+- Do NOT confirm for a correctly phase-gated or condition-gated settlement function (e.g. settle() requiring Phase.Ended) that simply pays a winner. If conditions are reachable through normal protocol operation, asset locking is not present.
+- Do NOT confirm for CEI-compliant functions (state decremented before external transfer, with nonReentrant) — a failed transfer reverts the entire transaction and restores all state. There is no permanent lock.
 - A protocol with a working alternative recovery path does not satisfy this property.
 """
     elif vulnerability.get("id") == "NUANCED_ACCESS_CONTROL":
@@ -139,6 +145,8 @@ Nuanced Access Control-specific rules:
 - The property is present when a specific authorization flaw exists: a missing check on one execution path while another is guarded, an incorrect actor assumption, an initialization window where ownership can be hijacked, or a governance bypass.
 - The presence of multiple roles or modifiers is not itself a flaw — confirm only when the logic is specifically broken or incomplete.
 - Do not flag functions where the authorization structure is sound but simply involves multiple roles.
+- CRITICAL: acceptOwnership() wrong-guard test — read the function carefully. If the function uses onlyOwner (or any check that resolves to msg.sender == owner), the guard is WRONG for this function. The PENDING owner should be calling acceptOwnership, not the current owner. This is always a bug: property_match = true. Only property_match = false if the function explicitly checks msg.sender == pendingOwner (or newOwner).
+- IMPORTANT: if initialize() has no caller restriction and only a one-time flag, confirm the property — a frontrunner can set themselves as owner before the legitimate deployer. A constructor-based initialization does NOT have this flaw.
 """
 
     return f"""

@@ -2,8 +2,9 @@
 pragma solidity ^0.8.0;
 
 // Pattern: missing phase enforcement on a state-transition function.
-// The settle() function can be called while the auction is still open,
-// allowing the owner to drain funds before the auction legitimately ends.
+// settle() can be called while the auction is still Open, allowing the owner
+// to drain funds before the auction legitimately ends.
+// Uses pull-payment for bids to keep the DoS concern out of this contract.
 // Based on a common audit finding in auction and escrow contracts.
 contract PhaseAuction {
     enum Phase { Open, Ended, Settled }
@@ -13,6 +14,7 @@ contract PhaseAuction {
     address public highestBidder;
     uint256 public highestBid;
     uint256 public endTime;
+    mapping(address => uint256) public pendingReturns;
 
     event BidPlaced(address indexed bidder, uint256 amount);
     event AuctionEnded();
@@ -29,14 +31,19 @@ contract PhaseAuction {
         require(currentPhase == Phase.Open, "Auction not open");
         require(block.timestamp < endTime, "Bidding period over");
         require(msg.value > highestBid, "Bid too low");
-
         if (highestBidder != address(0)) {
-            payable(highestBidder).transfer(highestBid);
+            pendingReturns[highestBidder] += highestBid;  // pull-payment: no inline transfer
         }
-
         highestBidder = msg.sender;
         highestBid = msg.value;
         emit BidPlaced(msg.sender, msg.value);
+    }
+
+    function withdrawBid() external {
+        uint256 amount = pendingReturns[msg.sender];
+        require(amount > 0, "Nothing to withdraw");
+        pendingReturns[msg.sender] = 0;
+        payable(msg.sender).transfer(amount);
     }
 
     function endAuction() external {
@@ -47,8 +54,8 @@ contract PhaseAuction {
         emit AuctionEnded();
     }
 
-    // Vulnerable: missing phase check allows calling settle() before the auction ends.
-    // Owner can call settle() while Phase is still Open, cutting off active bidders.
+    // Vulnerable: missing phase check — settle() can be called while Phase is still Open.
+    // Owner can drain funds before the auction legitimately ends.
     function settle() external {
         require(msg.sender == owner, "Not owner");
         require(highestBidder != address(0), "No bids");
