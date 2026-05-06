@@ -1,12 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.4.19;
 
-// Source: SimpleDAO — canonical reentrancy example from the Ethereum Classic DAO incident.
-// Reproduced from SmartBugs dataset (github.com/smartbugs/smartbugs, reentrancy/simple_dao.sol)
-// and referenced in SWC-107 (https://swcregistry.io/docs/SWC-107).
-// Vulnerability: withdraw() sends ETH before updating credit[msg.sender], allowing
-// a malicious fallback to re-enter and drain the contract.
-
 contract SimpleDAO {
     mapping(address => uint256) public credit;
 

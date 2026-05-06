@@ -32,38 +32,6 @@ def _find_enclosing_contract(contracts: list[dict], function_start: int):
     return current["name"] if current else None
 
 
-def load_contract(filepath: str) -> str:
-    with open(filepath, "r", encoding="utf-8") as f:
-        return f.read()
-
-
-def _line_number_from_index(text: str, index: int) -> int:
-    return text.count("\n", 0, index) + 1
-
-
-def extract_contract_names(contract_code: str) -> list[dict]:
-    pattern = re.compile(r'\b(contract|library|interface)\s+([A-Za-z_][A-Za-z0-9_]*)')
-    results = []
-    for match in pattern.finditer(contract_code):
-        results.append({
-            "type": match.group(1),
-            "name": match.group(2),
-            "start": match.start(),
-            "line": _line_number_from_index(contract_code, match.start())
-        })
-    return results
-
-
-def _find_enclosing_contract(contracts: list[dict], function_start: int):
-    current = None
-    for c in contracts:
-        if c["start"] <= function_start:
-            current = c
-        else:
-            break
-    return current["name"] if current else None
-
-
 def _extract_body(contract_code: str, match_end: int):
     """Find the matching closing brace for a function body. Returns (body_start, end)."""
     body_start = contract_code.find("{", match_end - 1)
@@ -88,6 +56,7 @@ def _extract_body(contract_code: str, match_end: int):
 
 def extract_functions(contract_code: str) -> list[dict]:
     contracts = extract_contract_names(contract_code)
+    contract_type_by_name = {c["name"]: c["type"] for c in contracts}
     functions = []
     seen_starts = set()
 
@@ -103,8 +72,10 @@ def extract_functions(contract_code: str) -> list[dict]:
         if body_start is None:
             continue
         seen_starts.add(start)
+        contract_name = _find_enclosing_contract(contracts, start)
         functions.append({
-            "contract_name": _find_enclosing_contract(contracts, start),
+            "contract_name": contract_name,
+            "contract_type": contract_type_by_name.get(contract_name, "contract"),
             "function_name": fn_name,
             "signature": contract_code[start:body_start].strip(),
             "code": contract_code[start:end],
@@ -133,8 +104,10 @@ def extract_functions(contract_code: str) -> list[dict]:
         if body_start is None:
             continue
         seen_starts.add(start)
+        contract_name = _find_enclosing_contract(contracts, start)
         functions.append({
-            "contract_name": _find_enclosing_contract(contracts, start),
+            "contract_name": contract_name,
+            "contract_type": contract_type_by_name.get(contract_name, "contract"),
             "function_name": fn_name,
             "signature": contract_code[start:body_start].strip(),
             "code": contract_code[start:end],

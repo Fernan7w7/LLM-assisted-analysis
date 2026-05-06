@@ -11,26 +11,26 @@ from pipeline.runner import analyze_file
 # -----------------------------
 CASES = [
     # DOS
-    {"path": "./datasets/positive/dos_01_real_auction.sol", "expected": "DOS_EXTERNAL", "should_flag": True},
-    {"path": "./datasets/negative/dos_03_pull_payment_safe.sol", "expected": "DOS_EXTERNAL", "should_flag": False},
+    {"path": "./datasets/synthetic/dos/positive/dos_01_real_auction.sol", "expected": "DOS_EXTERNAL", "should_flag": True},
+    {"path": "./datasets/synthetic/dos/negative/dos_03_pull_payment_safe.sol", "expected": "DOS_EXTERNAL", "should_flag": False},
 
     # Reentrancy
-    {"path": "./datasets/positive/reentrancy_01.sol", "expected": "REENTRANCY", "should_flag": True},
-    {"path": "./datasets/negative/reentrancy_02.sol", "expected": "REENTRANCY", "should_flag": False},
+    {"path": "./datasets/synthetic/reentrancy/positive/reentrancy_01.sol", "expected": "REENTRANCY", "should_flag": True},
+    {"path": "./datasets/synthetic/reentrancy/negative/reentrancy_02.sol", "expected": "REENTRANCY", "should_flag": False},
 
-    # Access Control
-    {"path": "./datasets/positive/access_01.sol", "expected": "ACCESS_CONTROL", "should_flag": True},
-    {"path": "./datasets/negative/access_02.sol", "expected": "ACCESS_CONTROL", "should_flag": False},
+    # Nuanced Access Control
+    {"path": "./datasets/synthetic/nuanced_access_control/positive/access_01.sol", "expected": "NUANCED_ACCESS_CONTROL", "should_flag": True},
+    {"path": "./datasets/synthetic/nuanced_access_control/negative/access_02.sol", "expected": "NUANCED_ACCESS_CONTROL", "should_flag": False},
 
     # Delegatecall Misuse
-    {"path": "./datasets/positive/delegatecall_01.sol", "expected": "DELEGATECALL_MISUSE", "should_flag": True},
-    {"path": "./datasets/negative/delegatecall_02.sol", "expected": "DELEGATECALL_MISUSE", "should_flag": False},
+    {"path": "./datasets/synthetic/delegatecall/positive/delegatecall_01.sol", "expected": "DELEGATECALL_MISUSE", "should_flag": True},
+    {"path": "./datasets/synthetic/delegatecall/negative/delegatecall_02.sol", "expected": "DELEGATECALL_MISUSE", "should_flag": False},
 
     # Logic / Validation
-    {"path": "./datasets/positive/logic_01.sol", "expected": "LOGIC_VALIDATION", "should_flag": True},
-    {"path": "./datasets/negative/logic_02.sol", "expected": "LOGIC_VALIDATION", "should_flag": False},
-    {"path": "./datasets/positive/logic_03.sol", "expected": "LOGIC_VALIDATION", "should_flag": True},
-    {"path": "./datasets/negative/logic_04.sol", "expected": "LOGIC_VALIDATION", "should_flag": False},
+    {"path": "./datasets/synthetic/logic_validation/positive/logic_01.sol", "expected": "LOGIC_VALIDATION", "should_flag": True},
+    {"path": "./datasets/synthetic/logic_validation/negative/logic_02.sol", "expected": "LOGIC_VALIDATION", "should_flag": False},
+    {"path": "./datasets/synthetic/logic_validation/positive/logic_03.sol", "expected": "LOGIC_VALIDATION", "should_flag": True},
+    {"path": "./datasets/synthetic/logic_validation/negative/logic_04.sol", "expected": "LOGIC_VALIDATION", "should_flag": False},
 ]
 
 OUTPUT_DIR = Path("evaluation_outputs")

@@ -129,12 +129,18 @@ def analyze_prompt(prompt: str) -> dict:
                 "error": f"JSON parse error: {e}"
             }
 
+        meta = data.get("usageMetadata", {})
+
         return {
             "ok": True,
             "parsed": parsed,
             "raw": raw,
             "full_response": data,
-            "error": None
+            "error": None,
+            "usage": {
+                "input_tokens": meta.get("promptTokenCount", 0),
+                "output_tokens": meta.get("candidatesTokenCount", 0),
+            },
         }
 
     except Exception as e:

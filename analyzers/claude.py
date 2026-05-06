@@ -71,12 +71,17 @@ def analyze_prompt(prompt: str) -> dict:
 
         raw = data["content"][0]["text"]
         parsed = parse_json_response(raw)
+        usage = data.get("usage", {})
 
         return {
             "ok": True,
             "parsed": parsed,
             "raw": raw,
-            "error": None
+            "error": None,
+            "usage": {
+                "input_tokens": usage.get("input_tokens", 0),
+                "output_tokens": usage.get("output_tokens", 0),
+            },
         }
 
     except Exception as e:

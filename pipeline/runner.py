@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 import re
@@ -24,11 +25,14 @@ from static_checks.basic_checks import (
 )
 
 
-PROVIDERS = {
+_ALL_PROVIDERS = {
     "gpt": analyze_with_gpt,
-    #"claude": analyze_with_claude,
-    #"gemini": analyze_with_gemini,
+    "claude": analyze_with_claude,
+    "gemini": analyze_with_gemini,
 }
+
+_provider_keys = [k.strip() for k in os.getenv("PROVIDER", "gpt").lower().split(",")]
+PROVIDERS = {k: _ALL_PROVIDERS[k] for k in _provider_keys if k in _ALL_PROVIDERS}
 
 DEBUG_BEHAVIOR_ONLY = False
 
@@ -68,6 +72,7 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             "= 0;" in code
             or "=0;" in code
             or "-=" in code
+            or "delete " in code_compact
         )
 
         # Exclude owner-payout functions: auth-guarded admin withdrawals that send
@@ -508,12 +513,15 @@ def analyze_function_with_provider(provider_name: str, provider_fn, filepath: st
     }
 
 
-def analyze_file(filepath: str) -> list[dict]:
+def analyze_file(filepath: str, vuln_filter: set[str] | None = None) -> list[dict]:
     contract_code = load_contract(filepath)
     functions = extract_functions(contract_code)
     results = []
 
     for function_data in functions:
+        if function_data.get("contract_type") in ("library", "interface"):
+            continue
+
         function_data["behavior"] = extract_behavior(function_data["code"])
         #print("\n=== FUNCTION ===")
         #print(function_data["function_name"])
@@ -523,6 +531,8 @@ def analyze_file(filepath: str) -> list[dict]:
             continue
 
         for vulnerability in VULNERABILITY_SCENARIOS:
+            if vuln_filter and vulnerability["id"] not in vuln_filter:
+                continue
             #========================DEBUG================================
             #if function_data["function_name"] == "Collect":
             #    print("\n=== COLLECT BEHAVIOR ===")
@@ -558,17 +568,25 @@ def analyze_file(filepath: str) -> list[dict]:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python -m pipeline.runner <contract.sol>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Analyze a Solidity smart contract for vulnerabilities.")
+    parser.add_argument("filepath", help="Path to the .sol file")
+    parser.add_argument(
+        "--vuln", nargs="+", metavar="ID",
+        help="Restrict to specific vulnerability IDs (e.g. REENTRANCY ASSET_LOCKING)"
+    )
+    args = parser.parse_args()
 
-    filepath = sys.argv[1]
+    filepath = args.filepath
+    vuln_filter = set(v.upper() for v in args.vuln) if args.vuln else None
 
     if not os.path.exists(filepath):
         print(f"File not found: {filepath}")
         sys.exit(1)
 
-    results = analyze_file(filepath)
+    if vuln_filter:
+        print(f"Filtering to: {', '.join(sorted(vuln_filter))}")
+
+    results = analyze_file(filepath, vuln_filter)
     print_summary(results)
 
     output_name = f"llm_analysis_{os.path.basename(filepath)}.json"

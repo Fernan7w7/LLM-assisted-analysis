@@ -7,11 +7,11 @@ echo "======================================"
 
 mkdir -p reports
 
-for f in datasets/positive/*.sol datasets/negative/*.sol datasets/edge/*.sol; do
+while IFS= read -r -d '' f; do
     echo "--------------------------------------"
     echo "Running: $f"
     python -m pipeline.runner "$f"
-done
+done < <(find datasets/synthetic datasets/real -name "*.sol" -print0 | sort -z)
 
 echo "======================================"
-echo "Done. Reports saved in /reports"
+echo "Done. Reports saved in reports/"
