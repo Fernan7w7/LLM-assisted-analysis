@@ -8,17 +8,23 @@ def extract_behavior(function_code: str) -> dict:
         lowered = line.lower()
         compact = line.replace(" ", "").lower()
 
-        # checks
+        # checks — also covers Solidity 0.4.x throw-style guards
         if "require(" in lowered or re.match(r"^if\s*\(", lowered):
             ops.append({"type": "CHECK", "detail": line})
 
         # detect delegatecall before skipping control-flow lines
+        # covers: .delegatecall( (Solidity) and delegatecall( (assembly/yul)
         is_call_line = False
-        if ".delegatecall(" in compact:
+        if ".delegatecall(" in compact or re.search(r"\bdelegatecall\(", compact):
             ops.append({"type": "DELEGATECALL", "detail": line})
             is_call_line = True
 
-        # detect external calls, including old-style call.value(...) and calls inside if(...)
+        # 0.4.x selfdestruct alias: suicide(...)
+        elif "suicide(" in compact or "selfdestruct(" in compact:
+            ops.append({"type": "SELFDESTRUCT", "detail": line})
+            is_call_line = True
+
+        # external calls — includes old-style call.value(...) and calls inside if(...)
         elif (
             ".call(" in compact
             or ".call{" in compact
@@ -28,6 +34,10 @@ def extract_behavior(function_code: str) -> dict:
         ):
             ops.append({"type": "CALL", "detail": line})
             is_call_line = True
+
+        # 0.4.x throw → REVERT signal (not a CALL, but marks an abort point)
+        if lowered.strip() == "throw;" or lowered.strip() == "throw":
+            ops.append({"type": "REVERT", "detail": line})
 
         # skip control-flow lines for WRITE classification only
         if re.match(r"^(if|else\s+if|else|for|while)\b", lowered):
@@ -55,6 +65,9 @@ def extract_behavior(function_code: str) -> dict:
 
     has_external_call = any(op["type"] == "CALL" for op in ops)
     has_delegatecall = any(op["type"] == "DELEGATECALL" for op in ops)
+    has_selfdestruct = any(op["type"] == "SELFDESTRUCT" for op in ops)
+    has_delete = "delete " in lowered_code
+
     has_auth_check = (
         "onlyowner" in lowered_code
         or "msg.sender == owner" in lowered_code
@@ -67,7 +80,11 @@ def extract_behavior(function_code: str) -> dict:
         or "_checkrole(" in compact_code
         or "require(hasrole(" in compact_code
     )
-    has_require = "require(" in lowered_code or "if(" in compact_code
+    has_require = (
+        "require(" in lowered_code
+        or "if(" in compact_code
+        or "throw" in lowered_code  # 0.4.x abort pattern
+    )
 
     call_idx = next((i for i, op in enumerate(ops) if op["type"] in {"CALL", "DELEGATECALL"}), None)
 
@@ -119,6 +136,8 @@ def extract_behavior(function_code: str) -> dict:
         "signals": {
             "has_external_call": has_external_call,
             "has_delegatecall": has_delegatecall,
+            "has_selfdestruct": has_selfdestruct,
+            "has_delete": has_delete,
             "has_auth_check": has_auth_check,
             "has_require": has_require,
             "writes_before_call": writes_before_call,
