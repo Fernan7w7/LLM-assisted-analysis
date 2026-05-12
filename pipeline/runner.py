@@ -6,7 +6,7 @@ import re
 from analyzers.gpt import analyze_prompt as analyze_with_gpt
 from analyzers.claude import analyze_prompt as analyze_with_claude
 from analyzers.gemini import analyze_prompt as analyze_with_gemini
-from data.taxonomy import VULNERABILITY_SCENARIOS
+from data.taxonomy import TAXONOMY, ACTIVE_IDS, VULNERABILITY_SCENARIOS
 from parsing.solidity_parser import load_contract, extract_functions
 from pipeline.reporting import print_summary, save_json
 from prompts.templates import build_property_prompt, build_scenario_prompt
@@ -15,13 +15,10 @@ from pipeline.triage import triage_results
 from static_checks.basic_checks import (
     confirm_authorization_check,
     confirm_external_call_dos,
-    confirm_order_issue,
     confirm_reentrancy_pattern,
-    confirm_access_control,
     confirm_delegatecall_misuse,
     confirm_logic_validation,
     confirm_nuanced_access_control,
-    confirm_asset_locking,
 )
 
 
@@ -48,7 +45,9 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
     code_compact = " ".join(code.split())
 
     # --- IR-FIRST SPECIAL CASES ---
-    if vulnerability["id"] == "REENTRANCY":
+
+    # 1.1 / 1.2 — Reentrancy (both variants share the same IR filter)
+    if vulnerability["id"] in {"1.1", "1.2"}:
         if not signals.get("has_external_call", False):
             return False
 
@@ -75,7 +74,23 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             or "delete " in code_compact
         )
 
-        # Exclude owner-payout functions: auth-guarded admin withdrawals that send
+        # 1.2 also catches callback-based patterns (ERC-777, flash loans, ERC-721 hooks)
+        if vulnerability["id"] == "1.2":
+            callback_hints = (
+                "tokensreceived" in code
+                or "onerc721received" in code
+                or "onerc1155received" in code
+                or "_beforetokentransfer" in code
+                or "_aftertokentransfer" in code
+                or "flashloan" in code
+                or "callback" in code_compact
+                or "votes[" in code
+                or "snapshots[" in code
+            )
+            if callback_hints:
+                return True
+
+        # Exclude owner-payout functions — auth-guarded admin withdrawals that send
         # only to the owner state variable are not meaningful reentrancy candidates.
         signature = function_data.get("signature", "").lower()
         owner_payout = (
@@ -92,18 +107,49 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
 
         return has_name_hint or (reusable_accounting_hints and state_reset_hints)
 
-    if vulnerability["id"] == "DELEGATECALL_MISUSE":
+    # 1.3 — Delegatecall state corruption (DELEGATECALL to attacker-controlled target,
+    # storage corruption happens inside the delegatecall itself — no Solidity-level WRITE
+    # after the delegatecall is required, because the callee writes to the proxy's slots)
+    if vulnerability["id"] == "1.3":
+        code = function_data["code"].lower()
+        code_compact = " ".join(code.split())
+        signature = function_data.get("signature", "").lower()
+
+        if not signals.get("has_delegatecall", False):
+            return False
+
+        # Externally-supplied target (caller controls which contract runs in our storage)
+        externally_influenced = (
+            "address" in signature
+            or "bytes" in signature
+            or "_data" in code_compact
+            or "calldata" in code_compact
+            or "target" in code_compact
+        )
+
+        # Assembly-based proxy fallback (calldatacopy + delegatecall in assembly = proxy pattern)
+        proxy_fallback = (
+            "calldatacopy" in code_compact
+            or fn_name in ("fallback", "receive")
+        )
+
+        execution_wrapper = (
+            "execute" in fn_name
+            or "call" in fn_name
+            or "delegate" in fn_name
+            or "proxy" in fn_name
+        )
+
+        return externally_influenced or proxy_fallback or execution_wrapper
+
+    # 2.2 — Unprotected delegatecall (guard absence: no CHECK before DELEGATECALL)
+    if vulnerability["id"] == "2.2":
         code = function_data["code"].lower()
         code_compact = " ".join(code.split())
         fn_name = function_data["function_name"].lower()
         signature = function_data.get("signature", "").lower()
 
-        explicit_delegatecall = (
-            ".delegatecall(" in code_compact
-            or "delegatecall" in code_compact
-        )
-
-        if not explicit_delegatecall:
+        if not signals.get("has_delegatecall", False):
             return False
 
         externally_influenced = (
@@ -122,8 +168,6 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             or "delegate" in fn_name
         )
 
-        # Unprotected delegatecall with no auth check is also a misuse candidate
-        # regardless of parameter types (e.g. hardcoded-target but publicly callable).
         unprotected_delegatecall = (
             not signals.get("has_auth_check", False)
             and " only" not in signature
@@ -133,7 +177,6 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             return False
 
         # Exclude auth-guarded functions with no externally-provided address or data
-        # parameter — those are trusted admin wrappers, not misuse candidates.
         no_external_input = (
             "address" not in signature
             and "bytes" not in signature
@@ -143,8 +186,7 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         if signals.get("has_auth_check", False) and no_external_input:
             return False
 
-        # Exclude modifier-guarded payload wrappers (onlyOwner + bytes param but no address param):
-        # passing bytes/calldata to a fixed trusted target is a normal admin proxy operation.
+        # Exclude modifier-guarded payload wrappers (onlyOwner + bytes param but no address)
         if (
             signals.get("has_auth_check", False)
             and " only" in signature
@@ -154,19 +196,15 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
 
         return True
 
-    
-    if vulnerability["id"] == "LOGIC_VALIDATION":
+    # 2.3 — Missing input validation (guard absence: no CHECK before sensitive WRITE)
+    if vulnerability["id"] == "2.3":
         signature = function_data.get("signature", "").lower()
         fn_name = function_data["function_name"].lower()
         code = function_data["code"].lower()
         code_compact = " ".join(code.split())
 
-        explicit_delegatecall = (
-            ".delegatecall(" in code_compact
-            or "delegatecall" in code_compact
-        )
-
-        if explicit_delegatecall:
+        # Delegatecall functions belong to 1.3/2.2, not 2.3
+        if signals.get("has_delegatecall", False):
             return False
 
         sensitive_name_hints = [
@@ -195,14 +233,21 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         getter_like_name = fn_name.startswith(("get", "view", "read"))
         view_like = " view " in signature or signature.endswith(" view") or " pure " in signature or signature.endswith(" pure")
 
-        # Exclude role-guarded and OZ-initializer functions — configuration, not workflow logic.
+        # Exclude role-guarded and OZ-initializer functions
         strong_role_guard = " only" in signature or " initializer" in signature
 
-        # Only keep logic-validation on functions that look stateful / workflow-sensitive.
         if getter_like_name or view_like or strong_role_guard:
             return False
 
-        return has_sensitive_name or (address_input_like and state_transition_hints)
+        # Also catch: address parameter used in an external call with no zero-address validation
+        unvalidated_address_call = (
+            address_input_like
+            and signals.get("has_external_call", False)
+            and not signals.get("has_zero_address_check", False)
+            and not signals.get("has_require", False)
+        )
+
+        return has_sensitive_name or (address_input_like and state_transition_hints) or unvalidated_address_call
 
     # --- GENERIC KEYWORD/CONTENT FILTERS ---
     name_match = any(keyword in fn_name for keyword in function_keywords) if function_keywords else True
@@ -217,7 +262,8 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         return False
 
     # --- CATEGORY-SPECIFIC REFINEMENTS ---
-    if vulnerability["id"] == "DOS_EXTERNAL":
+    # 1.4 — DoS via external call (shared settlement path check)
+    if vulnerability["id"] == "1.4":
         if not signals.get("has_external_call", False):
             return False
 
@@ -227,10 +273,9 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             and "transferfrom" not in code_compact
         )
 
-        # Normal self-withdraw pattern: user withdraws own balance and only their own call can fail.
         self_withdraw_pattern = (
             any(hint in function_data["function_name"].lower() for hint in ["withdraw", "redeem", "unstake"])
-            and "[msg.sender]" in code_compact  # any per-user mapping update
+            and "[msg.sender]" in code_compact
             and ("-=" in code_compact or "=0;" in code_compact or "= 0;" in code.lower())
             and (
                 "msg.sender.call{" in code_compact
@@ -245,7 +290,8 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         if owner_payout_pattern or self_withdraw_pattern:
             return False
 
-    if vulnerability["id"] == "NUANCED_ACCESS_CONTROL":
+    # 2.1 — Access control bypass (covers both plain missing guard and nuanced/flawed guard)
+    if vulnerability["id"] == "2.1":
         signature = function_data.get("signature", "").lower()
         fn_name = function_data["function_name"].lower()
         code = function_data["code"].lower()
@@ -274,13 +320,9 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             or "acceptownership" in code_compact
         )
 
-        delegatecall_execution_surface = (
-            ".delegatecall(" in code_compact
-            or "delegatecall" in code_compact
-        )
+        delegatecall_execution_surface = signals.get("has_delegatecall", False)
 
-        # Do not route simple delegatecall execution wrappers into nuanced AC
-        # unless there is a real ownership/admin/role/upgrade/init transition surface.
+        # Delegatecall wrappers without ownership/role/upgrade surface belong to 1.3/2.2
         if delegatecall_execution_surface and not (
             "owner" in code_compact
             or "admin" in code_compact
@@ -295,17 +337,11 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         ):
             return False
 
-        # Do not send plainly role-guarded admin functions into nuanced AC
-        # unless there is some subtler transition / role-management surface.
+        # Plainly role-guarded admin functions without a subtler transition surface are safe
         if strong_role_guard and not privileged_transition_hints:
             return False
 
-        simple_delegatecall_wrapper = (
-            delegatecall_execution_surface
-            and "setnum" in fn_name
-        )
-
-        if simple_delegatecall_wrapper:
+        if delegatecall_execution_surface and "setnum" in fn_name:
             return False
 
     return True
@@ -317,9 +353,6 @@ def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
     if confirmation_type == "reentrancy_pattern":
         return confirm_reentrancy_pattern(function_data)
 
-    if confirmation_type == "access_control_check":
-        return confirm_access_control(function_data)
-
     if confirmation_type == "delegatecall_check":
         return confirm_delegatecall_misuse(function_data)
 
@@ -328,16 +361,6 @@ def apply_static_check(function_data: dict, vulnerability: dict) -> dict:
 
     if confirmation_type == "nuanced_access_control_check":
         return confirm_nuanced_access_control(function_data)
-
-    if confirmation_type == "asset_locking_check":
-        return confirm_asset_locking(function_data)
-
-    if confirmation_type == "order_check":
-        return confirm_order_issue(
-            code,
-            early_terms=["checkpoint"],
-            late_terms=["balance", "reward", "share", "stake"]
-        )
 
     if confirmation_type == "external_call_criticality":
         return confirm_external_call_dos(code)
@@ -443,18 +466,9 @@ def analyze_function_with_provider(provider_name: str, provider_fn, filepath: st
         and property_data.get("property_match", False)
     )
 
-    STRUCTURAL_CATEGORIES = {
-        "REENTRANCY",
-        "DELEGATECALL_MISUSE",
-        "DOS_EXTERNAL",
-        "ACCESS_CONTROL",
-    }
-
-    CONTEXTUAL_CATEGORIES = {
-        "NUANCED_ACCESS_CONTROL",
-        "ASSET_LOCKING",
-        "LOGIC_VALIDATION",
-    }
+    CLASS_1_IDS = {"1.1", "1.2", "1.3", "1.4", "1.5"}
+    CLASS_2_IDS = {"2.1", "2.2", "2.3", "2.4", "2.5"}
+    CLASS_3_IDS = {"3.1", "3.2", "3.3", "3.4"}
 
     static_corroborated = static_result.get("passed", False)
 
@@ -466,13 +480,10 @@ def analyze_function_with_provider(provider_name: str, provider_fn, filepath: st
     except Exception:
         final_confidence = 0.0
 
+    vuln_class = vulnerability.get("class", 0)
     if llm_vulnerable:
-        if vulnerability["id"] in CONTEXTUAL_CATEGORIES:
-            verdict = "llm_positive_contextual"
-            decision_basis = "llm_decision_behavior_aware_contextual"
-        else:
-            verdict = "llm_positive_structural"
-            decision_basis = "llm_decision_behavior_aware_structural"
+        verdict = f"llm_positive_class{vuln_class}"
+        decision_basis = f"llm_decision_class{vuln_class}"
     else:
         verdict = "rejected"
         decision_basis = "llm_negative"
@@ -572,12 +583,12 @@ def main():
     parser.add_argument("filepath", help="Path to the .sol file")
     parser.add_argument(
         "--vuln", nargs="+", metavar="ID",
-        help="Restrict to specific vulnerability IDs (e.g. REENTRANCY ASSET_LOCKING)"
+        help="Restrict to specific taxonomy IDs (e.g. 1.1 2.1 2.3)"
     )
     args = parser.parse_args()
 
     filepath = args.filepath
-    vuln_filter = set(v.upper() for v in args.vuln) if args.vuln else None
+    vuln_filter = set(args.vuln) if args.vuln else None
 
     if not os.path.exists(filepath):
         print(f"File not found: {filepath}")
