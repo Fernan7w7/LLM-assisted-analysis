@@ -131,13 +131,12 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         if not signals.get("has_delegatecall", False):
             return False
 
-        # Externally-supplied target (caller controls which contract runs in our storage)
+        # Externally-supplied target (caller controls WHICH CONTRACT runs in our storage).
+        # Require "address" in the signature or "target" as a named parameter — mere presence
+        # of "bytes"/"calldata" only means data flow, not that the TARGET ADDRESS is caller-supplied.
         externally_influenced = (
-            "address" in signature
-            or "bytes" in signature
-            or "_data" in code_compact
-            or "calldata" in code_compact
-            or "target" in code_compact
+            "address" in signature         # address parameter = caller supplies target
+            or "target" in signature       # parameter explicitly named target
         )
 
         # Assembly-based proxy fallback (calldatacopy + delegatecall in assembly = proxy pattern)
@@ -248,10 +247,26 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         getter_like_name = fn_name.startswith(("get", "view", "read"))
         view_like = " view " in signature or signature.endswith(" view") or " pure " in signature or signature.endswith(" pure")
 
-        # Exclude role-guarded and OZ-initializer functions
-        strong_role_guard = " only" in signature or " initializer" in signature
+        if getter_like_name or view_like:
+            return False
 
-        if getter_like_name or view_like or strong_role_guard:
+        # Catch unchecked return value BEFORE role-guard exclusion: onlyOwner does not
+        # substitute for a missing return-value check on .send()/.call().
+        unchecked_send = (
+            signals.get("has_external_call", False)
+            and (
+                ".send(" in code
+                or "msg.sender.send" in code
+                or ".call.value(" in code
+                or ".call{value:" in code
+            )
+        )
+        if unchecked_send:
+            return True
+
+        # Exclude role-guarded and OZ-initializer functions (after unchecked_send bypass)
+        strong_role_guard = " only" in signature or " initializer" in signature
+        if strong_role_guard:
             return False
 
         # Also catch: address parameter used in an external call with no zero-address validation
@@ -262,18 +277,7 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             and not signals.get("has_require", False)
         )
 
-        # Catch unchecked return value: .send() / old-style .call.value() with no success check
-        unchecked_send = (
-            signals.get("has_external_call", False)
-            and not signals.get("has_require", False)
-            and (
-                ".send(" in code
-                or "msg.sender.send" in code
-                or ".call.value(" in code
-            )
-        )
-
-        return has_sensitive_name or (address_input_like and state_transition_hints) or unvalidated_address_call or unchecked_send
+        return has_sensitive_name or (address_input_like and state_transition_hints) or unvalidated_address_call
 
     # --- GENERIC KEYWORD/CONTENT FILTERS ---
     name_match = any(keyword in fn_name for keyword in function_keywords) if function_keywords else True
@@ -376,6 +380,40 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
 
         if delegatecall_execution_surface and "setnum" in fn_name:
             return False
+
+    # 1.5 — Silent Termination: must have selfdestruct; pass both silent and guarded
+    # (emit_before_selfdestruct=False = potentially vulnerable; True = potentially safe)
+    if vulnerability["id"] == "1.5":
+        return signals.get("has_selfdestruct", False)
+
+    # 2.4 — Unprotected Selfdestruct: must actually contain selfdestruct/suicide
+    if vulnerability["id"] == "2.4":
+        return signals.get("has_selfdestruct", False)
+
+    # 2.5 — Unguarded State Deletion: must contain a delete operation; skip view/pure
+    if vulnerability["id"] == "2.5":
+        if not signals.get("has_delete", False):
+            return False
+        signature = function_data.get("signature", "").lower()
+        view_like = " view " in signature or " pure " in signature
+        return not view_like
+
+    # 3.1 — Block Dependency: must reference block attributes
+    if vulnerability["id"] == "3.1":
+        return signals.get("has_block_dependency", False)
+
+    # 3.3 — Oracle Manipulation: keyword filter (oracle/getReserves/flashloan/etc.) is sufficient
+    if vulnerability["id"] == "3.3":
+        return True  # basic_match from content_keywords already narrowed the candidates
+
+    # 3.2 — tx.origin Misuse: must reference tx.origin
+    if vulnerability["id"] == "3.2":
+        return signals.get("has_tx_origin", False)
+
+    # 3.4 — Stale State Read: generic keyword filter (cached/snapshot/etc.) is sufficient;
+    # no IR requirement since the static-snapshot variant has no external call.
+    if vulnerability["id"] == "3.4":
+        return True  # basic_match already confirmed by generic filter above
 
     return True
 

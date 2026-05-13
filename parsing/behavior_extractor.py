@@ -24,6 +24,10 @@ def extract_behavior(function_code: str) -> dict:
             ops.append({"type": "SELFDESTRUCT", "detail": line})
             is_call_line = True
 
+        # event emission — used for 1.5 ordering check
+        elif lowered.lstrip().startswith("emit "):
+            ops.append({"type": "EMIT", "detail": line})
+
         # external calls — includes old-style call.value(...) and calls inside if(...)
         elif (
             ".call(" in compact
@@ -67,6 +71,31 @@ def extract_behavior(function_code: str) -> dict:
     has_delegatecall = any(op["type"] == "DELEGATECALL" for op in ops)
     has_selfdestruct = any(op["type"] == "SELFDESTRUCT" for op in ops)
     has_delete = "delete " in lowered_code
+    has_tx_origin = "tx.origin" in lowered_code
+    has_oracle_read = (
+        "getreserves" in compact_code
+        or "latestrounddata" in compact_code
+        or "latestanswer" in compact_code
+        or "getprice" in compact_code
+        or "consult(" in compact_code
+        or "oracle" in lowered_code
+        or "getamountsout" in compact_code
+        or "price0cumulativelast" in compact_code
+    )
+    has_block_dependency = (
+        "block.timestamp" in lowered_code
+        or "block.number" in lowered_code
+        or "blockhash(" in lowered_code
+        or "block.blockhash(" in lowered_code
+        or bool(re.search(r"\bnow\b", lowered_code))  # 0.4.x/0.5.x alias for block.timestamp
+    )
+
+    # 1.5: True if at least one EMIT appears before SELFDESTRUCT in the op sequence
+    selfdestruct_idx = next((i for i, op in enumerate(ops) if op["type"] == "SELFDESTRUCT"), None)
+    emit_before_selfdestruct = (
+        selfdestruct_idx is not None
+        and any(op["type"] == "EMIT" for op in ops[:selfdestruct_idx])
+    )
 
     has_auth_check = (
         "onlyowner" in lowered_code
@@ -138,6 +167,10 @@ def extract_behavior(function_code: str) -> dict:
             "has_delegatecall": has_delegatecall,
             "has_selfdestruct": has_selfdestruct,
             "has_delete": has_delete,
+            "has_tx_origin": has_tx_origin,
+            "has_block_dependency": has_block_dependency,
+            "emit_before_selfdestruct": emit_before_selfdestruct,
+            "has_oracle_read": has_oracle_read,
             "has_auth_check": has_auth_check,
             "has_require": has_require,
             "writes_before_call": writes_before_call,

@@ -427,7 +427,9 @@ TAXONOMY = {
         "filters": {
             "function_keywords": [],
             "content_keywords": [
-                "getprice", "getreserves", "getamountsout", "consult(", "oracle"
+                "getprice", "getreserves", "getamountsout", "consult(", "oracle",
+                "latestrounddata", "latestanswer", "price0cumulativelast",
+                "flashloan", "flashswap", "pancakecall", "uniswapv2call"
             ]
         },
         "confirmation_type": None,
@@ -464,10 +466,10 @@ TAXONOMY = {
 }
 
 # Active IDs — implemented and evaluated in current prototype
-ACTIVE_IDS = ["1.1", "1.2", "1.3", "1.4", "2.1", "2.2", "2.3"]
+ACTIVE_IDS = ["1.1", "1.2", "1.3", "1.4", "1.5", "2.1", "2.2", "2.3", "2.4", "2.5", "3.1", "3.2", "3.3", "3.4"]
 
 # Future work — stubbed in taxonomy, not dispatched by the runner
-FUTURE_IDS = ["1.5", "2.4", "2.5", "3.1", "3.2", "3.3", "3.4"]
+FUTURE_IDS = []
 
 # Ordered list of active vulnerability dicts for iteration
 VULNERABILITY_SCENARIOS = [TAXONOMY[vid] for vid in ACTIVE_IDS]
