@@ -200,13 +200,17 @@ TAXONOMY = {
             "function_keywords": [
                 "sweep", "setowner", "setadmin", "pause", "unpause", "mint", "burn",
                 "upgrade", "set", "configure", "initialize", "execute",
-                "transferownership", "acceptownership", "grantrole", "revokerole"
+                "transferownership", "acceptownership", "grantrole", "revokerole",
+                "newowner", "addowner", "changeowner", "removeowner",  # multi-owner patterns
+                "migrate", "migrateto",                                 # migration patterns
+                "init",                                                  # short init alias
             ],
             "content_keywords": [
                 "onlyowner", "msg.sender == owner", "require(msg.sender == owner",
                 "owner =", "admin =", "selfdestruct", "delegatecall", "pause =",
                 "mint(", "grantrole", "revokerole", "transferownership",
-                "acceptownership", "pendingowner", "initializer", "initialize"
+                "acceptownership", "pendingowner", "initializer", "initialize",
+                "constructor", "newowner", "addowner",
             ]
         },
         "confirmation_type": "nuanced_access_control_check",
@@ -275,12 +279,15 @@ TAXONOMY = {
             "function_keywords": [
                 "initialize", "init", "setup", "configure", "set", "update",
                 "mint", "burn", "finalize", "execute", "setphase", "advance",
-                "settle", "close", "write"
+                "settle", "close", "write",
+                "transfer", "send", "pay", "forward",   # unchecked-send patterns
+                "withdraw", "claim", "sendtowin", "distribute", "payout",
             ],
             "content_keywords": [
                 "address ", "recipient", "msg.value", "initialize", "initializer",
                 "owner =", "admin =", "phase", "status", "currentslotindex",
-                "generation", "mint("
+                "generation", "mint(",
+                ".send(", "msg.sender.send", ".call.value(",  # unchecked low-level call signals
             ]
         },
         "confirmation_type": "logic_validation_check",
