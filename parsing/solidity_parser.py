@@ -9,10 +9,19 @@ def _line_number_from_index(text: str, index: int) -> int:
     return text.count("\n", 0, index) + 1
 
 
+def _strip_comments(code: str) -> str:
+    # Replace // line comments with blank (preserve newlines for line counting)
+    code = re.sub(r'//[^\n]*', lambda m: ' ' * len(m.group()), code)
+    # Replace /* block comments */ with spaces (preserve length for offset mapping)
+    code = re.sub(r'/\*.*?\*/', lambda m: ' ' * len(m.group()), code, flags=re.DOTALL)
+    return code
+
+
 def extract_contract_names(contract_code: str) -> list[dict]:
+    searchable = _strip_comments(contract_code)
     pattern = re.compile(r'\b(contract|library|interface)\s+([A-Za-z_][A-Za-z0-9_]*)')
     results = []
-    for match in pattern.finditer(contract_code):
+    for match in pattern.finditer(searchable):
         results.append({
             "type": match.group(1),
             "name": match.group(2),

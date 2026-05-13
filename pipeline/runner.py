@@ -54,7 +54,11 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         fn_name = function_data["function_name"].lower()
         code = function_data["code"].lower()
 
-        reentrancy_name_hints = ["withdraw", "claim", "redeem", "borrow", "unstake", "exit"]
+        reentrancy_name_hints = [
+            "withdraw", "claim", "redeem", "borrow", "unstake", "exit",
+            "collect",   # e.g. PERSONAL_BANK.Collect, common in SmartBugs
+            "receive",   # attacker receive() used as re-entry hook in exploit contracts
+        ]
         has_name_hint = any(hint in fn_name for hint in reentrancy_name_hints)
 
         reusable_accounting_hints = (
@@ -74,9 +78,18 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             or "delete " in code_compact
         )
 
-        # 1.2 also catches callback-based patterns (ERC-777, flash loans, ERC-721 hooks)
+        # 1.2 also catches callback-based patterns (ERC-777, flash loans, ERC-721/1155 hooks)
         if vulnerability["id"] == "1.2":
-            callback_hints = (
+            callback_name_hints = [
+                "uniswapv2call", "uniswapv3callback",  # Uniswap flash callbacks
+                "pancakecall",                          # PancakeSwap flash callback
+                "flashloan", "flashloanreceiver",       # Aave / generic flash loan
+                "execute",                              # some flash loan receivers
+                "callbackfn", "callback",
+            ]
+            has_callback_name = any(hint in fn_name for hint in callback_name_hints)
+
+            callback_code_hints = (
                 "tokensreceived" in code
                 or "onerc721received" in code
                 or "onerc1155received" in code
@@ -87,7 +100,7 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
                 or "votes[" in code
                 or "snapshots[" in code
             )
-            if callback_hints:
+            if has_callback_name or callback_code_hints:
                 return True
 
         # Exclude owner-payout functions — auth-guarded admin withdrawals that send
@@ -210,7 +223,9 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         sensitive_name_hints = [
             "initialize", "init", "setup", "configure", "set",
             "update", "mint", "burn", "finalize", "execute",
-            "settle", "close", "advance", "write"
+            "settle", "close", "advance", "write",
+            "transfer", "send", "pay", "forward",       # unchecked-send patterns
+            "withdraw", "claim", "distribute", "payout",
         ]
         has_sensitive_name = any(hint in fn_name for hint in sensitive_name_hints)
 
@@ -247,7 +262,18 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
             and not signals.get("has_require", False)
         )
 
-        return has_sensitive_name or (address_input_like and state_transition_hints) or unvalidated_address_call
+        # Catch unchecked return value: .send() / old-style .call.value() with no success check
+        unchecked_send = (
+            signals.get("has_external_call", False)
+            and not signals.get("has_require", False)
+            and (
+                ".send(" in code
+                or "msg.sender.send" in code
+                or ".call.value(" in code
+            )
+        )
+
+        return has_sensitive_name or (address_input_like and state_transition_hints) or unvalidated_address_call or unchecked_send
 
     # --- GENERIC KEYWORD/CONTENT FILTERS ---
     name_match = any(keyword in fn_name for keyword in function_keywords) if function_keywords else True
@@ -267,8 +293,15 @@ def function_matches_filter(function_data: dict, vulnerability: dict) -> bool:
         if not signals.get("has_external_call", False):
             return False
 
+        # Only exclude simple single-recipient owner payouts, not loops/distributions
+        is_loop_distribution = (
+            "for " in code or "for(" in code_compact
+            or "while " in code or "while(" in code_compact
+            or "distribut" in code or "loop" in code
+        )
         owner_payout_pattern = (
-            ("onlyowner" in code_compact or "msg.sender == owner" in code_compact)
+            not is_loop_distribution
+            and ("onlyowner" in code_compact or "msg.sender == owner" in code_compact)
             and (".transfer(" in code_compact or ".call{" in code_compact or ".call.value(" in code_compact)
             and "transferfrom" not in code_compact
         )
